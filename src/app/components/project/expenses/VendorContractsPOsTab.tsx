@@ -29,7 +29,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   const [editMode, setEditMode] = useState(false);
   const [editingPOId, setEditingPOId] = useState<string | null>(null);
   const [generatedPONumber, setGeneratedPONumber] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; base64: string }[]>([]);
   const [differentCategoryPerItem, setDifferentCategoryPerItem] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [newPO, setNewPO] = useState({
@@ -110,10 +110,16 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      setUploadedFiles([...uploadedFiles, ...filesArray]);
-    }
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const base64 = ev.target?.result as string;
+        setUploadedFiles((prev) => [...prev, { name: file.name, base64 }]);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleRemoveFile = (index: number) => {
@@ -180,7 +186,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
       paymentTerms: newPO.paymentTerms,
       termsAndConditions: newPO.termsAndConditions,
       notes: newPO.notes,
-      documents: uploadedFiles.map(f => f.name), // In production, upload to storage first
+      documents: uploadedFiles.map(f => f.base64),
       status: 'draft' as const,
       createdBy: user?.id, // Track who created the PO
     };
@@ -216,7 +222,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
       paymentTerms: newPO.paymentTerms,
       termsAndConditions: newPO.termsAndConditions,
       notes: newPO.notes,
-      documents: uploadedFiles.map(f => f.name), // In production, upload to storage first
+      documents: uploadedFiles.map(f => f.base64),
       status: 'draft' as const,
       modifiedBy: user?.id, // Track who modified the PO
       modifiedAt: new Date().toISOString(),
@@ -366,8 +372,108 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   };
 
   const handlePrintPO = (po: any) => {
-    // TODO: Implement PDF export
-    alert('PDF export functionality coming soon!');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const vendor = vendors.find((v: any) => v.id === po.vendorId);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Purchase Order - ${po.poNumber}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap');
+          body { font-family: 'Almarai', sans-serif; padding: 40px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #7A1516; padding-bottom: 20px; }
+          .company-name { font-size: 28px; font-weight: 800; color: #7A1516; margin-bottom: 5px; }
+          .document-title { font-size: 20px; font-weight: 700; margin-top: 10px; }
+          .info-section { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .info-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+          .info-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+          .info-value { font-size: 14px; font-weight: 700; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+          th { background-color: #f5f5f5; font-weight: 700; }
+          .text-right { text-align: right; }
+          .total-row { background-color: #f9f9f9; font-weight: 700; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
+          @media print { body { padding: 20px; } button { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">CORE CODE</div>
+          <div class="document-title">PURCHASE ORDER</div>
+        </div>
+        <div class="info-section">
+          <div class="info-box">
+            <div class="info-label">PO Number</div>
+            <div class="info-value">${po.poNumber}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Date</div>
+            <div class="info-value">${po.createdAt ? new Date(po.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Vendor</div>
+            <div class="info-value">${vendor?.name || 'Unknown Vendor'}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Status</div>
+            <div class="info-value" style="text-transform: uppercase;">${po.status || 'DRAFT'}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">VAT Status</div>
+            <div class="info-value" style="text-transform: capitalize;">${po.vatStatus || 'exclusive'}</div>
+          </div>
+          ${po.paymentTerms ? `<div class="info-box"><div class="info-label">Payment Terms</div><div class="info-value">${po.paymentTerms}</div></div>` : ''}
+        </div>
+        ${po.description ? `<div style="margin: 15px 0;"><strong>Description:</strong> ${po.description}</div>` : ''}
+        <h3>Line Items</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Unit</th>
+              <th class="text-right">Qty</th>
+              <th class="text-right">Unit Price</th>
+              <th class="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(po.items || []).map((item: any) => `
+            <tr>
+              <td>${item.description}</td>
+              <td>${item.unit || 'pcs'}</td>
+              <td class="text-right">${item.quantity}</td>
+              <td class="text-right">${(item.unitPrice || 0).toLocaleString()} SAR</td>
+              <td class="text-right">${(item.total || 0).toLocaleString()} SAR</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr><td colspan="4" class="text-right">Subtotal:</td><td class="text-right"><strong>${(po.subtotal || 0).toLocaleString()} SAR</strong></td></tr>
+            ${po.vat ? `<tr><td colspan="4" class="text-right">VAT (15%):</td><td class="text-right"><strong>${po.vat.toLocaleString()} SAR</strong></td></tr>` : ''}
+            <tr class="total-row"><td colspan="4" class="text-right">TOTAL AMOUNT:</td><td class="text-right"><strong>${(po.total || 0).toLocaleString()} SAR</strong></td></tr>
+          </tfoot>
+        </table>
+        ${po.termsAndConditions ? `<div style="margin: 20px 0;"><h3>Terms and Conditions:</h3><p style="white-space: pre-wrap;">${po.termsAndConditions}</p></div>` : ''}
+        ${po.notes ? `<div style="margin: 20px 0;"><h3>Notes:</h3><p style="white-space: pre-wrap;">${po.notes}</p></div>` : ''}
+        <div class="footer">
+          <p>This is a computer-generated document. For questions, please contact Core Code.</p>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #7A1516; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            Print / Save as PDF
+          </button>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const isAdmin = user?.role === 'admin';
@@ -1156,10 +1262,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                 <Button 
                   variant="outline" 
                   className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                  onClick={() => {
-                    // TODO: Implement PDF export
-                    alert('PDF export functionality coming soon!');
-                  }}
+                  onClick={() => handlePrintPO(selectedPO)}
                   type="button"
                 >
                   <FileText className="w-4 h-4 mr-2" />
@@ -1196,7 +1299,6 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                   <Button 
                     className="bg-[#7A1516] hover:bg-[#5A1012] text-white"
                     onClick={() => {
-                      // TODO: Implement edit functionality
                       setViewDialogOpen(false);
                       setEditMode(true);
                       setEditingPOId(selectedPO.id);

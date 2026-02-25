@@ -374,14 +374,177 @@ export function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="gantt" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gantt Chart</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500">Gantt chart view coming soon...</p>
-            </CardContent>
-          </Card>
+          {(() => {
+            const tasks = dataStore.getTasks(project.id);
+            const projectStart = project.startDate ? new Date(project.startDate) : new Date();
+            const projectEnd = project.endDate ? new Date(project.endDate) : new Date(projectStart.getTime() + 90 * 24 * 60 * 60 * 1000);
+            const totalDays = Math.max(1, Math.ceil((projectEnd.getTime() - projectStart.getTime()) / (24 * 60 * 60 * 1000)));
+
+            const tasksWithDates = tasks.filter(t => t.dueDate);
+            const statusColors: Record<string, string> = {
+              todo: 'bg-gray-400',
+              in_progress: 'bg-blue-500',
+              review: 'bg-yellow-500',
+              done: 'bg-green-500',
+            };
+            const statusLabels: Record<string, string> = {
+              todo: 'To Do',
+              in_progress: 'In Progress',
+              review: 'Review',
+              done: 'Done',
+            };
+            const priorityColors: Record<string, string> = {
+              low: 'text-gray-500',
+              medium: 'text-yellow-600',
+              high: 'text-orange-600',
+              urgent: 'text-red-600',
+            };
+
+            // Generate month headers
+            const months: { label: string; days: number }[] = [];
+            const cursor = new Date(projectStart);
+            cursor.setDate(1);
+            while (cursor <= projectEnd) {
+              const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+              const startDay = cursor <= projectStart ? (projectStart.getDate() - 1) : 0;
+              const endDay = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0) > projectEnd
+                ? projectEnd.getDate()
+                : daysInMonth;
+              months.push({
+                label: cursor.toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+                days: endDay - startDay,
+              });
+              cursor.setMonth(cursor.getMonth() + 1);
+            }
+
+            return (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Gantt Chart</CardTitle>
+                      <div className="flex items-center gap-4 text-sm">
+                        {Object.entries(statusLabels).map(([k, v]) => (
+                          <span key={k} className="flex items-center gap-1">
+                            <span className={`inline-block w-3 h-3 rounded-sm ${statusColors[k]}`}></span>
+                            {v}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Project timeline: {projectStart.toLocaleDateString()} – {projectEnd.toLocaleDateString()} ({totalDays} days)
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {tasksWithDates.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-6">
+                        <Calendar className="w-12 h-12 mb-3" />
+                        <p className="text-lg font-medium">No tasks with due dates</p>
+                        <p className="text-sm mt-1">Add tasks with due dates in the Tasks tab to see them on the Gantt chart</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <div style={{ minWidth: `${Math.max(800, totalDays * 18 + 220)}px` }}>
+                          {/* Header row */}
+                          <div className="flex border-b bg-gray-50">
+                            <div className="w-56 shrink-0 px-4 py-2 text-xs font-semibold text-gray-600 border-r">Task</div>
+                            <div className="flex-1 flex">
+                              {months.map((m, i) => (
+                                <div
+                                  key={i}
+                                  className="text-xs font-semibold text-gray-600 py-2 px-1 border-r text-center"
+                                  style={{ width: `${(m.days / totalDays) * 100}%`, minWidth: `${m.days * 18}px` }}
+                                >
+                                  {m.label}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Task rows */}
+                          {tasksWithDates.map((task, idx) => {
+                            const dueDate = new Date(task.dueDate!);
+                            // Estimate start as 3 days before due or project start
+                            const estimatedStart = new Date(Math.max(projectStart.getTime(), dueDate.getTime() - 3 * 24 * 60 * 60 * 1000));
+                            const startOffset = Math.max(0, Math.ceil((estimatedStart.getTime() - projectStart.getTime()) / (24 * 60 * 60 * 1000)));
+                            const duration = Math.max(1, Math.ceil((dueDate.getTime() - estimatedStart.getTime()) / (24 * 60 * 60 * 1000)));
+                            const leftPct = (startOffset / totalDays) * 100;
+                            const widthPct = Math.min((duration / totalDays) * 100, 100 - leftPct);
+
+                            return (
+                              <div key={task.id} className={`flex border-b hover:bg-gray-50 ${idx % 2 === 0 ? '' : 'bg-gray-50/40'}`}>
+                                <div className="w-56 shrink-0 px-4 py-3 border-r">
+                                  <p className="text-sm font-medium truncate">{task.title}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className={`text-xs font-medium ${priorityColors[task.priority] || 'text-gray-500'}`}>
+                                      {task.priority}
+                                    </span>
+                                    <span className="text-xs text-gray-400">Due {dueDate.toLocaleDateString('en-SA', { month: 'short', day: 'numeric' })}</span>
+                                  </div>
+                                </div>
+                                <div className="flex-1 relative py-3 px-0" style={{ minHeight: '52px' }}>
+                                  {/* Today marker */}
+                                  {(() => {
+                                    const todayOffset = Math.ceil((new Date().getTime() - projectStart.getTime()) / (24 * 60 * 60 * 1000));
+                                    if (todayOffset >= 0 && todayOffset <= totalDays) {
+                                      return (
+                                        <div
+                                          className="absolute top-0 bottom-0 w-px bg-red-400 opacity-50 z-10"
+                                          style={{ left: `${(todayOffset / totalDays) * 100}%` }}
+                                        />
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                  {/* Task bar */}
+                                  <div
+                                    className={`absolute top-1/2 -translate-y-1/2 h-6 rounded ${statusColors[task.status] || 'bg-gray-400'} flex items-center px-2`}
+                                    style={{ left: `${leftPct}%`, width: `${Math.max(widthPct, 2)}%` }}
+                                    title={`${task.title} — ${statusLabels[task.status]}`}
+                                  >
+                                    <span className="text-white text-xs font-medium truncate">{task.title}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {/* Today line label */}
+                          <div className="flex border-t bg-gray-50 py-2">
+                            <div className="w-56 shrink-0 px-4 text-xs text-gray-500 border-r">
+                              Today: {new Date().toLocaleDateString()}
+                            </div>
+                            <div className="flex-1"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Task count summary */}
+                {tasks.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {Object.entries(statusLabels).map(([status, label]) => {
+                      const count = tasks.filter(t => t.status === status).length;
+                      return (
+                        <Card key={status}>
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-3 h-3 rounded-sm ${statusColors[status]}`}></span>
+                              <span className="text-sm text-gray-500">{label}</span>
+                            </div>
+                            <div className="text-2xl font-bold mt-1">{count}</div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>

@@ -347,6 +347,112 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
     }
   };
 
+  const handlePrintInvoice = (invoice: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const vendor = vendors.find((v: any) => v.id === invoice.vendorId);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Vendor Invoice - ${invoice.invoiceNumber}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap');
+          body { font-family: 'Almarai', sans-serif; padding: 40px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #7A1516; padding-bottom: 20px; }
+          .company-name { font-size: 28px; font-weight: 800; color: #7A1516; margin-bottom: 5px; }
+          .document-title { font-size: 20px; font-weight: 700; margin-top: 10px; }
+          .info-section { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .info-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+          .info-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+          .info-value { font-size: 14px; font-weight: 700; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+          th { background-color: #f5f5f5; font-weight: 700; }
+          .text-right { text-align: right; }
+          .total-row { background-color: #f9f9f9; font-weight: 700; }
+          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
+          @media print { body { padding: 20px; } button { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">CORE CODE</div>
+          <div class="document-title">VENDOR INVOICE</div>
+        </div>
+        <div class="info-section">
+          <div class="info-box">
+            <div class="info-label">Invoice Number</div>
+            <div class="info-value">${invoice.invoiceNumber}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Invoice Date</div>
+            <div class="info-value">${new Date(invoice.invoiceDate).toLocaleDateString()}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Vendor</div>
+            <div class="info-value">${vendor?.name || 'Unknown Vendor'}</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Status</div>
+            <div class="info-value" style="text-transform: uppercase;">${invoice.status || 'PENDING'}</div>
+          </div>
+          ${invoice.dueDate ? `
+          <div class="info-box">
+            <div class="info-label">Due Date</div>
+            <div class="info-value">${new Date(invoice.dueDate).toLocaleDateString()}</div>
+          </div>` : ''}
+          <div class="info-box">
+            <div class="info-label">VAT Treatment</div>
+            <div class="info-value" style="text-transform: capitalize;">${invoice.vatTreatment || 'exclusive'}</div>
+          </div>
+        </div>
+        ${invoice.description ? `<div style="margin: 15px 0;"><strong>Description:</strong> ${invoice.description}</div>` : ''}
+        <h3>Line Items</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="text-right">Qty</th>
+              <th class="text-right">Unit Price</th>
+              <th class="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(invoice.items || []).map((item: any) => `
+            <tr>
+              <td>${item.description}</td>
+              <td class="text-right">${item.quantity}</td>
+              <td class="text-right">${(item.unitPrice || 0).toLocaleString()} SAR</td>
+              <td class="text-right">${(item.total || 0).toLocaleString()} SAR</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot>
+            <tr><td colspan="3" class="text-right">Subtotal:</td><td class="text-right"><strong>${(invoice.subtotal || 0).toLocaleString()} SAR</strong></td></tr>
+            ${invoice.vat ? `<tr><td colspan="3" class="text-right">VAT (15%):</td><td class="text-right"><strong>${invoice.vat.toLocaleString()} SAR</strong></td></tr>` : ''}
+            <tr class="total-row"><td colspan="3" class="text-right">TOTAL AMOUNT:</td><td class="text-right"><strong>${(invoice.total || 0).toLocaleString()} SAR</strong></td></tr>
+          </tfoot>
+        </table>
+        ${invoice.notes ? `<div style="margin: 20px 0;"><h3>Notes:</h3><p style="white-space: pre-wrap;">${invoice.notes}</p></div>` : ''}
+        <div class="footer">
+          <p>This is a computer-generated document. For questions, please contact Core Code.</p>
+          <p>Generated on ${new Date().toLocaleString()}</p>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #7A1516; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+            Print / Save as PDF
+          </button>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   const isAdmin = user?.role === 'admin';
   const canSendForApproval = !isAdmin && selectedInvoice?.status === 'pending';
   const canApproveOrReject = isAdmin && (selectedInvoice?.status === 'pending' || selectedInvoice?.status === 'pending_approval');
@@ -766,12 +872,12 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                             <Pencil className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            alert('PDF export functionality coming soon!');
+                            handlePrintInvoice(invoice);
                           }}
                           className="text-green-600 hover:text-green-700"
                           title="Print/Export PDF"
@@ -1048,9 +1154,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                 <Button 
                   variant="outline" 
                   className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                  onClick={() => {
-                    alert('PDF export functionality coming soon!');
-                  }}
+                  onClick={() => handlePrintInvoice(selectedInvoice)}
                   type="button"
                 >
                   <FileText className="w-4 h-4 mr-2" />

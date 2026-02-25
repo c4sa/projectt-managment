@@ -49,6 +49,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [modificationRequestDialogOpen, setModificationRequestDialogOpen] = useState(false);
@@ -333,6 +334,8 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
     setDialogOpen(false);
     setIsFromPO(false);
     setIsFromInvoice(false);
+    setIsEditMode(false);
+    setEditingPaymentId(null);
     setSelectedPO(null);
     setSelectedInvoice(null);
     setLineItemPayments([]);
@@ -348,6 +351,47 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
       notes: '',
     });
     onDataUsed();
+  };
+
+  const handleUpdatePayment = () => {
+    if (!editingPaymentId) return;
+    const updates = {
+      vendorId: newPayment.vendorId,
+      poId: newPayment.poId === 'none' ? null : newPayment.poId || null,
+      invoiceId: newPayment.invoiceId === 'none' ? null : newPayment.invoiceId || null,
+      amount: newPayment.amount,
+      paymentMethod: newPayment.paymentMethod,
+      referenceNumber: newPayment.referenceNumber,
+      paymentDate: newPayment.paymentDate,
+      notes: newPayment.notes,
+    };
+    dataStore.updatePayment(editingPaymentId, updates);
+    loadData();
+    setEditingPaymentId(null);
+    setIsEditMode(false);
+    handleCloseDialog();
+  };
+
+  const handleEditPayment = (payment: any) => {
+    setEditingPaymentId(payment.id);
+    setIsEditMode(true);
+    setIsFromPO(false);
+    setIsFromInvoice(false);
+    setSelectedPO(null);
+    setSelectedInvoice(null);
+    setLineItemPayments([]);
+    setPaymentNumber(payment.paymentNumber || '');
+    setNewPayment({
+      vendorId: payment.vendorId || '',
+      poId: payment.poId || '',
+      invoiceId: payment.invoiceId || '',
+      amount: payment.amount || 0,
+      paymentMethod: payment.paymentMethod || 'bank_transfer',
+      referenceNumber: payment.referenceNumber || '',
+      paymentDate: payment.paymentDate || new Date().toISOString().split('T')[0],
+      notes: payment.notes || '',
+    });
+    setDialogOpen(true);
   };
 
   const getVendorName = (vendorId: string) => {
@@ -779,7 +823,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
           <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[96vw] md:max-w-[94vw] lg:max-w-[92vw] xl:max-w-[90vw] 2xl:max-w-[88vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {isFromPO ? `Payment Request for PO ${selectedPO?.poNumber}` : isFromInvoice ? `Payment Request for Invoice ${selectedInvoice?.invoiceNumber}` : 'Payment Request'}
+                {isEditMode ? `Edit Payment ${paymentNumber}` : isFromPO ? `Payment Request for PO ${selectedPO?.poNumber}` : isFromInvoice ? `Payment Request for Invoice ${selectedInvoice?.invoiceNumber}` : 'Payment Request'}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -1450,12 +1494,12 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                     <Button variant="outline" onClick={handleCloseDialog}>
                       Cancel
                     </Button>
-                    <Button 
-                      onClick={handleCreatePayment} 
+                    <Button
+                      onClick={isEditMode ? handleUpdatePayment : handleCreatePayment}
                       className="bg-[#7A1516] hover:bg-[#5A1012]"
                       disabled={!newPayment.vendorId || !newPayment.amount || !newPayment.paymentDate}
                     >
-                      Send Request
+                      {isEditMode ? 'Save Changes' : 'Send Request'}
                     </Button>
                   </div>
                 </>
@@ -1564,10 +1608,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => {
-                              // TODO: Implement edit functionality
-                              alert('Edit functionality coming soon!');
-                            }}
+                            onClick={() => handleEditPayment(payment)}
                             className="text-blue-600 hover:text-blue-700"
                             title="Edit Payment"
                           >

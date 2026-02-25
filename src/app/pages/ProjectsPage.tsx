@@ -98,6 +98,7 @@ export function ProjectsPage() {
       contractValue: 0,
       vatStatus: 'not_applicable' as 'not_applicable' | 'inclusive' | 'exclusive',
       contractDocument: '',
+      contractDocumentName: '',
       contractLink: '',
     });
   };
@@ -127,6 +128,7 @@ export function ProjectsPage() {
     contractValue: 0,
     vatStatus: 'not_applicable' as 'not_applicable' | 'inclusive' | 'exclusive',
     contractDocument: '',
+    contractDocumentName: '',
     contractLink: '',
   });
 
@@ -317,14 +319,23 @@ export function ProjectsPage() {
                       accept=".pdf,.doc,.docx"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) {
-                          // In production, upload to storage and get URL
-                          const fakeUrl = `contract_${file.name}`;
-                          setNewProject({ ...newProject, contractDocument: fakeUrl });
+                        if (!file) return;
+                        if (file.size > 10 * 1024 * 1024) {
+                          alert('File must be under 10MB');
+                          return;
                         }
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          const base64 = ev.target?.result as string;
+                          setNewProject({ ...newProject, contractDocument: base64, contractDocumentName: file.name });
+                        };
+                        reader.readAsDataURL(file);
                       }}
                       className="cursor-pointer"
                     />
+                    {newProject.contractDocumentName && (
+                      <p className="text-xs text-green-600 font-medium">✓ {newProject.contractDocumentName} selected</p>
+                    )}
                     <p className="text-xs text-gray-500">Upload PDF, DOC, or DOCX file (Max 10MB)</p>
                   </div>
 

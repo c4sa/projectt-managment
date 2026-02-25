@@ -298,15 +298,39 @@ export function ProjectInformationTab({ project }: ProjectInformationTabProps) {
                 )}
 
                 <div className="border-t pt-4">
-                  <Label className="mb-2 block">Contract Document (File Path/URL)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Enter file path or URL"
-                      value={editedProject.contractDocument || ''}
-                      onChange={(e) => setEditedProject({ ...editedProject, contractDocument: e.target.value })}
-                      className="flex-1"
+                  <Label className="mb-2 block">Contract Document</Label>
+                  {editedProject.contractDocument && editedProject.contractDocument.startsWith('data:') ? (
+                    <div className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded border border-green-200 mb-2">
+                      <FileText className="w-4 h-4 text-green-600" />
+                      <span className="flex-1 text-green-700">Document uploaded</span>
+                      <Button size="sm" variant="ghost" className="h-7 text-red-500 hover:text-red-700"
+                        onClick={() => setEditedProject({ ...editedProject, contractDocument: '' })}>
+                        Remove
+                      </Button>
+                    </div>
+                  ) : null}
+                  <label className="cursor-pointer">
+                    <span className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                      <Upload className="w-4 h-4 mr-2" />
+                      {editedProject.contractDocument && editedProject.contractDocument.startsWith('data:') ? 'Replace Document' : 'Upload Document'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 10 * 1024 * 1024) { alert('File must be under 10MB'); return; }
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                          setEditedProject({ ...editedProject, contractDocument: ev.target?.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }}
                     />
-                  </div>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX. Max 10MB</p>
                 </div>
 
                 <div>
@@ -394,12 +418,21 @@ export function ProjectInformationTab({ project }: ProjectInformationTabProps) {
                           {project.contractDocument && (
                             <div className="flex items-center gap-2 text-sm p-2 bg-gray-50 rounded border">
                               <FileText className="w-4 h-4 text-gray-400" />
-                              <span className="flex-1 text-gray-700 truncate">{project.contractDocument.split('/').pop()}</span>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
+                              <span className="flex-1 text-gray-700 truncate">
+                                {project.contractDocument.startsWith('data:') ? 'Contract Document (Uploaded)' : project.contractDocument.split('/').pop()}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 className="h-7 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                onClick={() => window.open(project.contractDocument, '_blank')}
+                                onClick={() => {
+                                  if (project.contractDocument!.startsWith('data:')) {
+                                    const win = window.open();
+                                    if (win) { win.document.write(`<iframe src="${project.contractDocument}" style="width:100%;height:100%;border:none;"></iframe>`); }
+                                  } else {
+                                    window.open(project.contractDocument, '_blank');
+                                  }
+                                }}
                               >
                                 View
                               </Button>
