@@ -33,13 +33,26 @@ export function SettingsPage() {
     inAppProject: true,
   });
 
-  const [company, setCompany] = useState({
-    name: 'Core Code',
-    address: 'Riyadh, Saudi Arabia',
-    phone: '+966 11 234 5678',
-    email: 'info@corecode.sa',
-    vatNumber: '300123456700003',
-  });
+  const loadCompanyInfo = () => {
+    try {
+      const stored = localStorage.getItem('core_code_company_info');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { name: 'Core Code', address: 'Riyadh, Saudi Arabia', phone: '+966 11 234 5678', email: 'info@corecode.sa', vatNumber: '300123456700003', logoBase64: '' };
+  };
+
+  const [company, setCompany] = useState(loadCompanyInfo);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error('Logo must be under 2MB'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCompany((prev: typeof company) => ({ ...prev, logoBase64: ev.target?.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSaveProfile = () => {
     toast.success('Profile updated successfully');
@@ -50,6 +63,7 @@ export function SettingsPage() {
   };
 
   const handleSaveCompany = () => {
+    localStorage.setItem('core_code_company_info', JSON.stringify(company));
     toast.success('Company settings updated');
   };
 
@@ -100,10 +114,18 @@ export function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Company Logo</Label>
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-[#7A1516] text-white rounded flex items-center justify-center text-2xl font-bold">
-                      CC
+                    {company.logoBase64 ? (
+                      <img src={company.logoBase64} alt="Company Logo" className="w-16 h-16 rounded object-contain border" />
+                    ) : (
+                      <div className="w-16 h-16 bg-[#7A1516] text-white rounded flex items-center justify-center text-2xl font-bold">CC</div>
+                    )}
+                    <div>
+                      <label className="cursor-pointer">
+                        <span className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Upload Logo</span>
+                        <input type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handleLogoUpload} />
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">JPG, PNG. Max 2MB</p>
                     </div>
-                    <Button variant="outline" size="sm">Upload Logo</Button>
                   </div>
                 </div>
 
