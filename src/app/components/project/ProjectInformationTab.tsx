@@ -52,7 +52,7 @@ export function ProjectInformationTab({ project }: ProjectInformationTabProps) {
         .reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
       
       // Calculate total paid by customer - use ACTUAL payments received (not invoice status)
-      const allPayments = dataStore.getPayments(project.id);
+      const allPayments = await dataStore.getPayments(project.id);
       const customerPayments = allPayments.filter((payment: any) => payment.type === 'receipt' && payment.status === 'paid');
       const paid = customerPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
       

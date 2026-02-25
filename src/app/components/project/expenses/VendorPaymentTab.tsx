@@ -124,7 +124,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
       setSelectedPO(po);
       
       // Get all payments for this PO to calculate previously paid amounts per line item
-      const allPayments = dataStore.getPayments(projectId);
+      const allPayments = await dataStore.getPayments(projectId);
       const poPayments = allPayments.filter((p: any) => p.poId === poId && p.type === 'payment');
       
       // Initialize line item payments
@@ -164,7 +164,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
       setSelectedInvoice(invoice);
       
       // Get all payments for this invoice to calculate previously paid amounts per line item
-      const allPayments = dataStore.getPayments(projectId);
+      const allPayments = await dataStore.getPayments(projectId);
       const invoicePayments = allPayments.filter((p: any) => p.invoiceId === invoiceId && p.type === 'payment');
       
       // Initialize line item payments
@@ -198,7 +198,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
   };
 
   const loadData = async () => {
-    const paymentsData = dataStore.getPayments(projectId);
+    const paymentsData = await dataStore.getPayments(projectId);
     const vendorPayments = paymentsData.filter((p: any) => p.type === 'payment');
     setPayments(vendorPayments);
     
@@ -514,8 +514,8 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
           await dataStore.updateBudgetActual(projectId, po, selectedPayment);
 
           // Calculate total paid for this PO
-          const allPayments = dataStore.getPayments(projectId);
-          const poPaidPayments = allPayments.filter((p: any) => 
+          const allPayments = await dataStore.getPayments(projectId);
+          const poPaidPayments = allPayments.filter((p: any) =>
             p.poId === selectedPayment.poId && 
             p.type === 'payment' && 
             p.status === 'paid'

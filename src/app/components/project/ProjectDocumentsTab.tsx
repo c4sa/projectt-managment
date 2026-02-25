@@ -96,13 +96,14 @@ export function ProjectDocumentsTab({ projectId }: Props) {
   
   // Get current user from Auth Context
   const { user: currentUser } = useAuth();
-  const users = dataStore.getUsers();
+  const [users, setUsers] = useState<any[]>([]);
 
   // Load data
   useEffect(() => {
     loadDocuments();
     loadFolders();
     loadActivities();
+    dataStore.getUsers().then(setUsers);
   }, [projectId]);
 
   const loadDocuments = async () => {

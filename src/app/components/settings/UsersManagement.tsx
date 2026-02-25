@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { dataStore } from '../../data/store';
 import { Card, CardContent } from '../ui/card';
@@ -12,10 +12,19 @@ import { Plus, Search, UserPlus, Mail } from 'lucide-react';
 
 export function UsersManagement() {
   const { user } = useAuth();
-  const [users, setUsers] = useState(dataStore.getUsers());
-  const [employees, setEmployees] = useState(dataStore.getEmployees());
+  const [users, setUsers] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const [u, e] = await Promise.all([dataStore.getUsers(), dataStore.getEmployees()]);
+      setUsers(u);
+      setEmployees(e);
+    };
+    load();
+  }, []);
 
   const [newUser, setNewUser] = useState({
     name: '',
@@ -32,9 +41,9 @@ export function UsersManagement() {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateUser = () => {
-    dataStore.addUser(newUser);
-    setUsers(dataStore.getUsers());
+  const handleCreateUser = async () => {
+    await dataStore.addUser(newUser);
+    setUsers(await dataStore.getUsers());
     setDialogOpen(false);
     setNewUser({
       name: '',

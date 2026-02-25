@@ -19,6 +19,7 @@ export function ProjectsPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsWithCalculations, setProjectsWithCalculations] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
@@ -34,26 +35,26 @@ export function ProjectsPage() {
       ]);
       setProjects(projectsData);
       setCustomers(customersData);
+
+      // Calculate dynamic budget and spent for each project
+      const withCalcs = await Promise.all(projectsData.map(async project => {
+        const [budgetItems, payments] = await Promise.all([
+          dataStore.getBudgetItems(project.id),
+          dataStore.getPayments(project.id),
+        ]);
+        const totalBudgeted = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+        const paidPayments = payments.filter((p: any) => p.type === 'payment' && p.status === 'paid');
+        const totalSpent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
+        return {
+          ...project,
+          budget: totalBudgeted > 0 ? totalBudgeted : project.budget,
+          spent: totalSpent,
+        };
+      }));
+      setProjectsWithCalculations(withCalcs);
     };
     loadData();
   }, []);
-
-  // Calculate dynamic budget and spent for each project
-  const projectsWithCalculations = projects.map(project => {
-    const budgetItems = dataStore.getBudgetItems(project.id);
-    const totalBudgeted = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
-    
-    // Calculate total spent from payments
-    const payments = dataStore.getPayments(project.id);
-    const paidPayments = payments.filter((p: any) => p.type === 'payment' && p.status === 'paid');
-    const totalSpent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
-    
-    return {
-      ...project,
-      budget: totalBudgeted > 0 ? totalBudgeted : project.budget,
-      spent: totalSpent
-    };
-  });
 
   // Generate project code when dialog opens
   useEffect(() => {

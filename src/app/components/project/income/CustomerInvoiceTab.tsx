@@ -41,9 +41,9 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
     const projectInvoices = invoicesData.filter((inv: any) => inv.projectId === projectId);
     
     // Get payments to calculate amounts paid
-    const paymentsData = dataStore.getPayments(projectId);
+    const paymentsData = await dataStore.getPayments(projectId);
     setPayments(paymentsData);
-    
+
     // Update invoice statuses based on payments
     const updatedInvoices = projectInvoices.map((invoice: CustomerInvoice) => {
       const invoicePayments = paymentsData.filter((p: any) => p.type === 'receipt' && p.invoiceId === invoice.id && p.status === 'paid');

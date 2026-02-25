@@ -24,7 +24,7 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 );
 
 export function ProjectBudgetTab({ projectId }: Props) {
-  const [budgetItems, setBudgetItems] = useState(dataStore.getBudgetItems(projectId));
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
@@ -56,42 +56,35 @@ export function ProjectBudgetTab({ projectId }: Props) {
         }
         setPurchaseOrders(pos);
         
-        const paymentsData = dataStore.getPayments(projectId);
+        const [paymentsData, vos, invoices, budgetItemsData, cats] = await Promise.all([
+          dataStore.getPayments(projectId),
+          dataStore.getVariationOrders(),
+          dataStore.getVendorInvoices(),
+          dataStore.getBudgetItems(projectId),
+          dataStore.getBudgetCategories(),
+        ]);
         setPayments(paymentsData);
-        
-        const vos = dataStore.getVariationOrders();
+
         const projectVOs = vos.filter((vo: any) => {
           const po = pos.find((p: any) => p.id === vo.poId);
           return po && po.projectId === projectId;
         });
         setVariationOrders(projectVOs);
-        
-        // Try to get invoices from API, fallback to sync method which uses localStorage
-        let invoices;
-        try {
-          invoices = await dataStore.getVendorInvoices();
-        } catch (error) {
-          console.log('Using local invoice data');
-          invoices = dataStore.getVendorInvoicesSync();
-        }
+
         const projectInvoices = invoices.filter((inv: any) => inv.projectId === projectId);
         setVendorInvoices(projectInvoices);
-        
-        // Also refresh budget items
-        setBudgetItems(dataStore.getBudgetItems(projectId));
+
+        setBudgetItems(budgetItemsData);
+        setCategories(cats);
+        if (cats.length > 0) {
+          setNewItem(prev => ({ ...prev, category: cats[0] as BudgetCategory }));
+        }
       } catch (error) {
         console.error('Error loading budget data:', error);
       }
     };
-    
+
     loadData();
-    // Load budget categories
-    const cats = dataStore.getBudgetCategories();
-    setCategories(cats);
-    // Set default category to first available
-    if (cats.length > 0) {
-      setNewItem(prev => ({ ...prev, category: cats[0] as BudgetCategory }));
-    }
   }, [projectId]);
 
   // Add visibility change listener to refresh data when tab becomes visible

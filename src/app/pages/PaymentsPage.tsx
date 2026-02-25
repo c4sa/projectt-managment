@@ -53,7 +53,7 @@ export function PaymentsPage() {
       setCustomers(customersData);
       setProjects(projectsData);
       // Get all payments across all projects
-      const allPayments = dataStore.getPayments();
+      const allPayments = await dataStore.getPayments();
       setPayments(allPayments);
       setLoading(false);
     };

@@ -55,8 +55,8 @@ export function EmployeesPage() {
     loadEmployees();
   }, []);
 
-  const loadEmployees = () => {
-    const data = dataStore.getEmployees();
+  const loadEmployees = async () => {
+    const data = await dataStore.getEmployees();
     setEmployees(data);
   };
 

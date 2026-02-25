@@ -56,7 +56,7 @@ export function VendorDetailPage() {
       setInvoices(vendorInvoices);
 
       // Load related payments
-      const allPayments = dataStore.getPayments();
+      const allPayments = await dataStore.getPayments();
       const vendorPayments = allPayments.filter(payment => payment.vendorId === id);
       setPayments(vendorPayments);
     };

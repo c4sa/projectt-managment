@@ -1,10 +1,12 @@
 // This file contains the data store and types for all modules
-// In production, this would be replaced with API calls to your backend
+// Data is persisted via the API (Express locally, Vercel serverless in production)
+// which stores everything in Supabase (kv_store_02fd4b7a table).
 
 import { numberGenerator } from '../utils/numberGenerator';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
 
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-02fd4b7a`;
+// API base: set VITE_API_BASE_URL=http://localhost:3000 in .env.local for local dev.
+// On Vercel, leave it unset and the app uses relative /api/... paths.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
 
 // Helper function for API calls
 async function apiCall(endpoint: string, method: string = 'GET', body?: any) {
@@ -12,55 +14,36 @@ async function apiCall(endpoint: string, method: string = 'GET', body?: any) {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${publicAnonKey}`,
     },
   };
-  
+
   if (body) {
     options.body = JSON.stringify(body);
   }
-  
-  try {
-    const response = await fetch(`${API_BASE}${endpoint}`, options);
-    
-    // If 404, return null (endpoint doesn't exist yet)
-    if (response.status === 404) {
-      return null;
-    }
-    
-    // Handle empty responses (like DELETE operations)
-    const text = await response.text();
-    if (!text || text.trim() === '') {
-      if (!response.ok) {
-        throw new Error(`API call failed with status ${response.status}`);
-      }
-      return null;
-    }
-    
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      // If it's not JSON, it might be an HTML error page
-      if (method !== 'GET') {
-        console.warn(`Non-JSON response from ${endpoint}:`, text.substring(0, 100));
-      }
-      return null;
-    }
-    
-    if (!data.success) {
-      throw new Error(data.error || 'API call failed');
-    }
-    
-    return data.data;
-  } catch (error) {
-    // Only log warnings for write operations (POST, PUT, DELETE)
-    // GET requests silently fall back to localStorage
-    if (method !== 'GET') {
-      console.warn(`API call to ${endpoint} failed:`, error);
+
+  const response = await fetch(`${API_BASE}${endpoint}`, options);
+
+  const text = await response.text();
+
+  if (!text || text.trim() === '') {
+    if (!response.ok) {
+      throw new Error(`API call failed with status ${response.status}`);
     }
     return null;
   }
+
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Non-JSON response from ${endpoint}: ${text.substring(0, 100)}`);
+  }
+
+  if (!data.success) {
+    throw new Error(data.error || `API call failed for ${endpoint}`);
+  }
+
+  return data.data;
 }
 
 export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed';
@@ -73,9 +56,9 @@ export type PaymentRequestStatus = 'pending' | 'level1_approved' | 'fully_approv
 export type PaymentStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'paid';
 export type PaymentMethod = 'bank_transfer' | 'cheque' | 'cash';
 export type DocumentType = 'contract' | 'drawing' | 'report' | 'invoice' | 'permit' | 'other';
-export type BudgetCategory = string; // Changed to string to allow dynamic categories
+export type BudgetCategory = string; // Dynamic categories
 
-export type ManpowerRole = 
+export type ManpowerRole =
   | 'project_manager'
   | 'assistant_pm'
   | 'site_engineer'
@@ -96,7 +79,7 @@ export interface ManpowerMember {
   phone?: string;
   email?: string;
   nationality?: string;
-  idNumber?: string; // Iqama/National ID
+  idNumber?: string;
   joiningDate?: string;
   notes?: string;
   createdAt: string;
@@ -137,9 +120,9 @@ export interface Project {
   budget: number;
   spent: number;
   contractValue?: number;
-  vatStatus?: 'not_applicable' | 'inclusive' | 'exclusive'; // Changed from vatInclusive boolean
-  contractDocument?: string; // URL or path to contract
-  contractLink?: string; // Link to cloud storage
+  vatStatus?: 'not_applicable' | 'inclusive' | 'exclusive';
+  contractDocument?: string;
+  contractLink?: string;
   createdAt: string;
 }
 
@@ -211,7 +194,7 @@ export interface BudgetItem {
   category: BudgetCategory;
   name: string;
   budgeted: number;
-  reserved: number; // Amount reserved by approved POs
+  reserved: number;
   actual: number;
   createdAt: string;
 }
@@ -278,15 +261,15 @@ export interface VendorInvoice {
   poId?: string;
   status: InvoiceStatus;
   issueDate: string;
-  invoiceDate?: string; // Alternative field name used by component
-  description?: string; // Added for component compatibility
+  invoiceDate?: string;
+  description?: string;
   dueDate: string;
   paymentDate?: string;
   items: POLineItem[];
   subtotal: number;
   vatRate: number;
   vatAmount: number;
-  vat?: number; // Alternative field name used by component
+  vat?: number;
   vatTreatment?: 'not_applicable' | 'inclusive' | 'exclusive';
   total: number;
   budgetCategory?: BudgetCategory;
@@ -352,7 +335,7 @@ export interface CustomerInvoice {
   vatRate: number;
   vatAmount: number;
   total: number;
-  amountPaid?: number; // Track amount paid through payments
+  amountPaid?: number;
   notes?: string;
   createdAt: string;
 }
@@ -446,21 +429,21 @@ export interface SystemUser {
   department?: string;
   status: 'active' | 'inactive';
   createdAt: string;
-  employeeId?: string; // Link to employee
+  employeeId?: string;
 }
 
 export interface Employee {
   id: string;
-  employeeId: string; // Auto-generated employee number
+  employeeId: string;
   name: string;
   email?: string;
   phone?: string;
   nationality?: string;
-  idNumber?: string; // Iqama/National ID
+  idNumber?: string;
   passportNumber?: string;
   department?: string;
   position?: string;
-  assignedRole?: string; // Project Manager, Site Engineer, etc.
+  assignedRole?: string;
   joiningDate?: string;
   bankName?: string;
   iban?: string;
@@ -469,630 +452,247 @@ export interface Employee {
   address?: string;
   notes?: string;
   status: 'active' | 'inactive' | 'on_leave';
-  userId?: string; // Link to system user
+  userId?: string;
   createdAt: string;
   updatedAt?: string;
 }
 
-// Mock Data Store
+// Data Store — all data lives in Supabase via the API
 class DataStore {
-  private projects: Project[] = [];
-  private customers: Customer[] = [];
-  private vendors: Vendor[] = [];
-  private tasks: Task[] = [];
-  private taskGroups: TaskGroup[] = [];
-  private budgetItems: BudgetItem[] = [];
-  private purchaseOrders: PurchaseOrder[] = [];
-  private variationOrders: VariationOrder[] = [];
-  private vendorInvoices: VendorInvoice[] = [];
-  private vendorClaims: VendorClaim[] = [];
-  private customerInvoices: CustomerInvoice[] = [];
-  private paymentRequests: PaymentRequest[] = [];
-  private payments: Payment[] = [];
-  private documents: Document[] = [];
-  private printTemplates: PrintTemplate[] = [];
-  private users: SystemUser[] = [];
-  private projectManpower: ProjectManpower[] = [];
-  private manpowerMembers: ManpowerMember[] = [];
-  private employees: Employee[] = [];
-
-  constructor() {
-    this.loadFromLocalStorage();
-    // Also sync from database
-    this.syncFromDatabase();
-    if (this.projects.length === 0) {
-      this.initializeMockData();
-      this.saveToLocalStorage();
-    }
-  }
-
-  private async syncFromDatabase() {
-    try {
-      const projects = await apiCall('/projects');
-      if (projects && projects.length > 0) {
-        this.projects = projects;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      // Database not available, use localStorage
-      console.log('Using localStorage (database not available)');
-    }
-
-    try {
-      const customers = await apiCall('/customers');
-      if (customers && customers.length > 0) {
-        this.customers = customers;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for customers');
-    }
-
-    try {
-      const vendors = await apiCall('/vendors');
-      if (vendors && vendors.length > 0) {
-        this.vendors = vendors;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for vendors');
-    }
-
-    try {
-      const users = await apiCall('/users');
-      if (users && users.length > 0) {
-        this.users = users;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for users');
-    }
-
-    // Sync financial data
-    try {
-      const pos = await apiCall('/purchase-orders');
-      if (pos && pos.length > 0) {
-        this.purchaseOrders = pos;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for purchase orders');
-    }
-
-    try {
-      const vendorInvoices = await apiCall('/vendorInvoices');
-      if (vendorInvoices && vendorInvoices.length > 0) {
-        this.vendorInvoices = vendorInvoices;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for vendor invoices');
-    }
-
-    try {
-      const customerInvoices = await apiCall('/customerInvoices');
-      if (customerInvoices && customerInvoices.length > 0) {
-        this.customerInvoices = customerInvoices;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for customer invoices');
-    }
-
-    try {
-      const payments = await apiCall('/payments');
-      if (payments && payments.length > 0) {
-        this.payments = payments;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for payments');
-    }
-
-    // Sync employees
-    try {
-      const employees = await apiCall('/employees');
-      if (employees && employees.length > 0) {
-        this.employees = employees;
-        this.saveToLocalStorage();
-      }
-    } catch (error) {
-      console.log('Using localStorage for employees');
-    }
-  }
-
-  private saveToLocalStorage() {
-    const data = {
-      projects: this.projects,
-      customers: this.customers,
-      vendors: this.vendors,
-      tasks: this.tasks,
-      taskGroups: this.taskGroups,
-      budgetItems: this.budgetItems,
-      purchaseOrders: this.purchaseOrders,
-      variationOrders: this.variationOrders,
-      vendorInvoices: this.vendorInvoices,
-      vendorClaims: this.vendorClaims,
-      customerInvoices: this.customerInvoices,
-      paymentRequests: this.paymentRequests,
-      payments: this.payments,
-      documents: this.documents,
-      printTemplates: this.printTemplates,
-      users: this.users,
-      projectManpower: this.projectManpower,
-      manpowerMembers: this.manpowerMembers,
-      employees: this.employees,
-    };
-    localStorage.setItem('core_code_data', JSON.stringify(data));
-  }
-
-  private loadFromLocalStorage() {
-    const data = localStorage.getItem('core_code_data');
-    if (data) {
-      try {
-        const parsed = JSON.parse(data);
-        this.projects = parsed.projects || [];
-        this.customers = parsed.customers || [];
-        this.vendors = parsed.vendors || [];
-        this.tasks = parsed.tasks || [];
-        this.taskGroups = parsed.taskGroups || [];
-        this.budgetItems = (parsed.budgetItems || []).map((item: any) => ({
-          ...item,
-          reserved: item.reserved || 0, // Initialize reserved if missing
-        }));
-        this.purchaseOrders = parsed.purchaseOrders || [];
-        this.variationOrders = parsed.variationOrders || [];
-        this.vendorInvoices = parsed.vendorInvoices || [];
-        this.vendorClaims = parsed.vendorClaims || [];
-        this.customerInvoices = parsed.customerInvoices || [];
-        this.paymentRequests = parsed.paymentRequests || [];
-        this.payments = parsed.payments || [];
-        this.documents = parsed.documents || [];
-        this.printTemplates = parsed.printTemplates || [];
-        this.users = parsed.users || [];
-        this.projectManpower = parsed.projectManpower || [];
-        this.manpowerMembers = parsed.manpowerMembers || [];
-        this.employees = parsed.employees || [];
-      } catch (e) {
-        console.error('Failed to parse stored data');
-      }
-    }
-  }
-
-  private async saveToDatabase() {
-    // Save critical data to database in background
-    this.saveToLocalStorage(); // Always save to localStorage first
-  }
-
-  private async initializeMockData() {
-    // Check if data already exists in database
-    const existingProjects = await apiCall('/projects');
-    if (existingProjects && existingProjects.length > 0) {
-      return; // Data already initialized
-    }
-
-    // Initialize with sample data
-    const customer = {
-      id: '1',
-      code: 'CUST-001',
-      name: 'Saudi Construction Company',
-      email: 'contact@saudiconstruction.sa',
-      phone: '+966 11 234 5678',
-      vatNumber: '300123456700003',
-      contactPerson: 'Ahmed Al-Rashid',
-      address: 'Riyadh, Saudi Arabia',
-      createdAt: new Date().toISOString(),
-    };
-    await apiCall('/customers', 'POST', customer);
-
-    const vendor = {
-      id: '1',
-      code: 'VEND-001',
-      name: 'Al-Khaled MEP Contractors',
-      email: 'info@alkhaledmep.sa',
-      phone: '+966 11 345 6789',
-      bankName: 'Al Rajhi Bank',
-      iban: 'SA1234567890123456789012',
-      vatNumber: '300987654300003',
-      specialty: 'MEP',
-      contactPerson: 'Mohammed Al-Khaled',
-      createdAt: new Date().toISOString(),
-    };
-    await apiCall('/vendors', 'POST', vendor);
-
-    const project = {
-      id: '1',
-      name: 'Riyadh Office Tower',
-      code: 'ROT-2026-001',
-      status: 'active',
-      customerId: '1',
-      projectManager: '1',
-      teamMembers: ['1', '2'],
-      startDate: '2026-01-15',
-      endDate: '2026-12-31',
-      description: 'Construction of 20-story office building in Riyadh',
-      location: 'King Fahd Road, Riyadh',
-      budget: 50000000,
-      spent: 12500000,
-      contractValue: 55000000,
-      vatStatus: 'inclusive',
-      contractDocument: 'https://example.com/contracts/ROT-2026-001.pdf',
-      contractLink: 'https://cloudstorage.com/contracts/ROT-2026-001.pdf',
-      createdAt: new Date().toISOString(),
-    };
-    await apiCall('/projects', 'POST', project);
-
-    const user = {
-      id: '1',
-      name: 'Admin User',
-      email: 'admin@corecode.sa',
-      role: 'admin',
-      phone: '+966 50 123 4567',
-      department: 'Management',
-      status: 'active',
-      createdAt: new Date().toISOString(),
-    };
-    await apiCall('/users', 'POST', user);
-
-    const template = {
-      id: '1',
-      name: 'Default Purchase Order Template',
-      type: 'purchase_order',
-      headerColor: '#7A1516',
-      fontFamily: 'Almarai',
-      header: 'Core Code Construction',
-      footer: 'Thank you for your business',
-      marginTop: 20,
-      marginBottom: 20,
-      marginLeft: 20,
-      marginRight: 20,
-      isDefault: true,
-      createdAt: new Date().toISOString(),
-    };
-    await apiCall('/print-templates', 'POST', template);
-  }
-
   // Projects
-  async getProjects() {
-    try {
-      const projects = await apiCall('/projects');
-      return projects || [];
-    } catch (error) {
-      console.error('Error getting projects:', error);
-      return [];
-    }
+  async getProjects(): Promise<Project[]> {
+    return (await apiCall('/projects')) ?? [];
   }
-  
-  async getProjectAsync(id: string) {
+
+  async getProjectAsync(id: string): Promise<Project | null> {
     try {
-      const projects = await this.getProjects();
-      return projects.find((p: Project) => p.id === id) || null;
-    } catch (error) {
-      console.error('Error getting project:', error);
+      return await apiCall(`/projects/${id}`);
+    } catch {
       return null;
     }
   }
-  
-  async addProject(project: Omit<Project, 'id' | 'createdAt' | 'code'>) {
+
+  async addProject(project: Omit<Project, 'id' | 'createdAt' | 'code'>): Promise<Project> {
     const code = numberGenerator.generateNumber('project');
     const newProject = { ...project, code, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    try {
-      return await apiCall('/projects', 'POST', newProject);
-    } catch (error) {
-      console.error('Error adding project:', error);
-      return newProject;
-    }
+    return await apiCall('/projects', 'POST', newProject);
   }
-  
-  async updateProject(id: string, updates: Partial<Project>) {
-    try {
-      return await apiCall(`/projects/${id}`, 'PUT', updates);
-    } catch (error) {
-      console.error('Error updating project:', error);
-      return null;
-    }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
+    return await apiCall(`/projects/${id}`, 'PUT', updates);
   }
-  
-  async deleteProject(id: string) {
-    try {
-      await apiCall(`/projects/${id}`, 'DELETE');
-    } catch (error) {
-      console.error('Error deleting project:', error);
-    }
+
+  async deleteProject(id: string): Promise<void> {
+    await apiCall(`/projects/${id}`, 'DELETE');
   }
 
   // Customers
-  async getCustomers() {
-    try {
-      const customers = await apiCall('/customers');
-      return customers || [];
-    } catch (error) {
-      console.error('Error getting customers:', error);
-      return [];
-    }
+  async getCustomers(): Promise<Customer[]> {
+    return (await apiCall('/customers')) ?? [];
   }
-  
-  async getCustomer(id: string) {
+
+  async getCustomer(id: string): Promise<Customer | null> {
     try {
       return await apiCall(`/customers/${id}`);
-    } catch (error: any) {
-      // Silently return null if customer not found (expected case)
-      if (error.message?.includes('Customer not found')) {
-        return null;
-      }
-      console.error('Error getting customer:', error);
+    } catch {
       return null;
     }
   }
-  
-  async addCustomer(customer: Omit<Customer, 'id' | 'createdAt' | 'code'>) {
+
+  async addCustomer(customer: Omit<Customer, 'id' | 'createdAt' | 'code'>): Promise<Customer> {
     const code = numberGenerator.generateNumber('customer');
     const newCustomer = { ...customer, id: Date.now().toString(), code, createdAt: new Date().toISOString() };
-    try {
-      return await apiCall('/customers', 'POST', newCustomer);
-    } catch (error) {
-      console.error('Error adding customer:', error);
-      return newCustomer;
-    }
+    return await apiCall('/customers', 'POST', newCustomer);
   }
-  
-  async updateCustomer(id: string, updates: Partial<Customer>) {
-    try {
-      return await apiCall(`/customers/${id}`, 'PUT', updates);
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      return null;
-    }
+
+  async updateCustomer(id: string, updates: Partial<Customer>): Promise<Customer> {
+    return await apiCall(`/customers/${id}`, 'PUT', updates);
   }
-  
-  async deleteCustomer(id: string) {
-    try {
-      await apiCall(`/customers/${id}`, 'DELETE');
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-    }
+
+  async deleteCustomer(id: string): Promise<void> {
+    await apiCall(`/customers/${id}`, 'DELETE');
   }
 
   // Vendors
-  async getVendors() {
-    try {
-      const vendors = await apiCall('/vendors');
-      return vendors || [];
-    } catch (error) {
-      console.error('Error getting vendors:', error);
-      // Fallback to localStorage
-      return [...this.vendors];
-    }
+  async getVendors(): Promise<Vendor[]> {
+    return (await apiCall('/vendors')) ?? [];
   }
-  
-  async getVendor(id: string) {
+
+  async getVendor(id: string): Promise<Vendor | null> {
     try {
       const vendors = await this.getVendors();
-      return vendors.find((v: Vendor) => v.id === id) || null;
-    } catch (error) {
-      console.error('Error getting vendor:', error);
+      return vendors.find((v: Vendor) => v.id === id) ?? null;
+    } catch {
       return null;
-    }
-  }
-  
-  async addVendor(vendor: Omit<Vendor, 'id' | 'createdAt' | 'code'>) {
-    const code = numberGenerator.generateNumber('vendor');
-    const id = Date.now().toString();
-    const newVendor = { ...vendor, id, code, createdAt: new Date().toISOString() };
-    try {
-      return await apiCall('/vendors', 'POST', newVendor);
-    } catch (error) {
-      console.error('Error adding vendor:', error);
-      return newVendor;
-    }
-  }
-  
-  async updateVendor(id: string, updates: Partial<Vendor>) {
-    try {
-      return await apiCall(`/vendors/${id}`, 'PUT', updates);
-    } catch (error) {
-      console.error('Error updating vendor:', error);
-      return null;
-    }
-  }
-  
-  async deleteVendor(id: string) {
-    try {
-      await apiCall(`/vendors/${id}`, 'DELETE');
-    } catch (error) {
-      console.error('Error deleting vendor:', error);
     }
   }
 
-  // Tasks
-  getTasks(projectId?: string) {
-    return projectId ? this.tasks.filter(t => t.projectId === projectId) : [...this.tasks];
+  async addVendor(vendor: Omit<Vendor, 'id' | 'createdAt' | 'code'>): Promise<Vendor> {
+    const code = numberGenerator.generateNumber('vendor');
+    const newVendor = { ...vendor, id: Date.now().toString(), code, createdAt: new Date().toISOString() };
+    return await apiCall('/vendors', 'POST', newVendor);
   }
-  getTask(id: string) { return this.tasks.find(t => t.id === id); }
-  addTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) {
+
+  async updateVendor(id: string, updates: Partial<Vendor>): Promise<Vendor> {
+    return await apiCall(`/vendors/${id}`, 'PUT', updates);
+  }
+
+  async deleteVendor(id: string): Promise<void> {
+    await apiCall(`/vendors/${id}`, 'DELETE');
+  }
+
+  // Tasks
+  async getTasks(projectId?: string): Promise<Task[]> {
+    const all: Task[] = (await apiCall('/tasks')) ?? [];
+    return projectId ? all.filter((t) => t.projectId === projectId) : all;
+  }
+
+  async getTask(id: string): Promise<Task | null> {
+    try {
+      return await apiCall(`/tasks/${id}`);
+    } catch {
+      return null;
+    }
+  }
+
+  async addTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
     const newTask = {
       ...task,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    this.tasks.push(newTask);
-    this.saveToLocalStorage();
-    return newTask;
+    return await apiCall('/tasks', 'POST', newTask);
   }
-  updateTask(id: string, updates: Partial<Task>) {
-    const index = this.tasks.findIndex(t => t.id === id);
-    if (index !== -1) {
-      this.tasks[index] = { ...this.tasks[index], ...updates, updatedAt: new Date().toISOString() };
-      this.saveToLocalStorage();
-      return this.tasks[index];
-    }
+
+  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
+    return await apiCall(`/tasks/${id}`, 'PUT', { ...updates, updatedAt: new Date().toISOString() });
   }
-  deleteTask(id: string) {
-    this.tasks = this.tasks.filter(t => t.id !== id);
-    this.saveToLocalStorage();
+
+  async deleteTask(id: string): Promise<void> {
+    await apiCall(`/tasks/${id}`, 'DELETE');
   }
 
   // Task Groups
-  getTaskGroups(projectId: string) {
-    return this.taskGroups.filter(g => g.projectId === projectId);
+  async getTaskGroups(projectId: string): Promise<TaskGroup[]> {
+    const all: TaskGroup[] = (await apiCall('/taskGroups')) ?? [];
+    return all.filter((g) => g.projectId === projectId);
   }
-  addTaskGroup(group: Omit<TaskGroup, 'id'>) {
+
+  async addTaskGroup(group: Omit<TaskGroup, 'id'>): Promise<TaskGroup> {
     const newGroup = { ...group, id: Date.now().toString() };
-    this.taskGroups.push(newGroup);
-    this.saveToLocalStorage();
-    return newGroup;
+    return await apiCall('/taskGroups', 'POST', newGroup);
   }
-  updateTaskGroup(id: string, updates: Partial<TaskGroup>) {
-    const index = this.taskGroups.findIndex(g => g.id === id);
-    if (index !== -1) {
-      this.taskGroups[index] = { ...this.taskGroups[index], ...updates };
-      this.saveToLocalStorage();
-      return this.taskGroups[index];
-    }
+
+  async updateTaskGroup(id: string, updates: Partial<TaskGroup>): Promise<TaskGroup> {
+    return await apiCall(`/taskGroups/${id}`, 'PUT', updates);
   }
-  deleteTaskGroup(id: string) {
-    this.taskGroups = this.taskGroups.filter(g => g.id !== id);
-    this.saveToLocalStorage();
+
+  async deleteTaskGroup(id: string): Promise<void> {
+    await apiCall(`/taskGroups/${id}`, 'DELETE');
   }
 
   // Budget Items
-  getBudgetItems(projectId: string) {
-    return this.budgetItems.filter(b => b.projectId === projectId);
+  async getBudgetItems(projectId: string): Promise<BudgetItem[]> {
+    const all: BudgetItem[] = (await apiCall('/budgetItems')) ?? [];
+    return all
+      .filter((b) => b.projectId === projectId)
+      .map((item) => ({ ...item, reserved: item.reserved || 0 }));
   }
-  addBudgetItem(item: Omit<BudgetItem, 'id' | 'createdAt'>) {
+
+  async addBudgetItem(item: Omit<BudgetItem, 'id' | 'createdAt'>): Promise<BudgetItem> {
     const newItem = { ...item, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.budgetItems.push(newItem);
-    this.saveToLocalStorage();
-    return newItem;
+    return await apiCall('/budgetItems', 'POST', newItem);
   }
-  updateBudgetItem(id: string, updates: Partial<BudgetItem>) {
-    const index = this.budgetItems.findIndex(b => b.id === id);
-    if (index !== -1) {
-      this.budgetItems[index] = { ...this.budgetItems[index], ...updates };
-      this.saveToLocalStorage();
-      return this.budgetItems[index];
-    }
+
+  async updateBudgetItem(id: string, updates: Partial<BudgetItem>): Promise<BudgetItem> {
+    return await apiCall(`/budgetItems/${id}`, 'PUT', updates);
   }
-  deleteBudgetItem(id: string) {
-    // Check if budget item is referenced by any PO, invoice, or payment
-    const budgetItem = this.budgetItems.find(b => b.id === id);
-    if (!budgetItem) {
-      throw new Error('Budget item not found');
-    }
 
-    const itemIdentifier = `${budgetItem.category}-${budgetItem.name}`;
+  async deleteBudgetItem(id: string): Promise<void> {
+    const item = await apiCall(`/budgetItems/${id}`);
+    if (!item) throw new Error('Budget item not found');
 
-    // Check POs for references (both at PO level and line item level)
-    const referencedInPO = this.purchaseOrders.some(po => {
-      // Check PO-level category
-      if (po.budgetCategory === budgetItem.category) {
-        return true;
-      }
-      // Check line items for budgetCategory or budgetItem references
+    const itemIdentifier = `${item.category}-${item.name}`;
+
+    const allPOs: PurchaseOrder[] = await this.getPurchaseOrders();
+    const referencedInPO = allPOs.some((po) => {
+      if (po.budgetCategory === item.category) return true;
       if (po.items && Array.isArray(po.items)) {
-        return po.items.some((item: any) => 
-          item.budgetCategory === budgetItem.category || 
-          item.budgetItem === itemIdentifier
+        return po.items.some((li: any) =>
+          li.budgetCategory === item.category || li.budgetItem === itemIdentifier
         );
       }
       return false;
     });
-
     if (referencedInPO) {
-      throw new Error(`Cannot delete budget item "${budgetItem.name}" because it is referenced by one or more Purchase Orders.`);
+      throw new Error(`Cannot delete budget item "${item.name}" because it is referenced by one or more Purchase Orders.`);
     }
 
-    // Check vendor invoices for references
-    const referencedInInvoice = this.vendorInvoices.some(invoice => {
-      // Check invoice-level category
-      if (invoice.budgetCategory === budgetItem.category) {
-        return true;
-      }
-      // Check line items for budgetCategory or budgetItem references
-      if (invoice.items && Array.isArray(invoice.items)) {
-        return invoice.items.some((item: any) => 
-          item.budgetCategory === budgetItem.category || 
-          item.budgetItem === itemIdentifier
+    const allInvoices: VendorInvoice[] = await this.getVendorInvoices();
+    const referencedInInvoice = allInvoices.some((inv) => {
+      if (inv.budgetCategory === item.category) return true;
+      if (inv.items && Array.isArray(inv.items)) {
+        return inv.items.some((li: any) =>
+          li.budgetCategory === item.category || li.budgetItem === itemIdentifier
         );
       }
       return false;
     });
-
     if (referencedInInvoice) {
-      throw new Error(`Cannot delete budget item "${budgetItem.name}" because it is referenced by one or more Invoices.`);
+      throw new Error(`Cannot delete budget item "${item.name}" because it is referenced by one or more Invoices.`);
     }
 
-    // Check payments for references
-    const referencedInPayment = this.payments.some(payment => 
-      payment.budgetCategory === budgetItem.category
-    );
-
+    const allPayments: Payment[] = await this.getPayments();
+    const referencedInPayment = allPayments.some((p: any) => p.budgetCategory === item.category);
     if (referencedInPayment) {
-      throw new Error(`Cannot delete budget item "${budgetItem.name}" because it is referenced by one or more Payments.`);
+      throw new Error(`Cannot delete budget item "${item.name}" because it is referenced by one or more Payments.`);
     }
 
-    // If no references found, proceed with deletion
-    this.budgetItems = this.budgetItems.filter(b => b.id !== id);
-    this.saveToLocalStorage();
+    await apiCall(`/budgetItems/${id}`, 'DELETE');
   }
 
-  // Update budget reserved amounts based on PO categories
-  async updateBudgetReserved(projectId: string, po: any, isApproving: boolean) {
-    const budgetItems = this.getBudgetItems(projectId);
-    
-    // Get categories from PO items or use PO-level category
+  async updateBudgetReserved(projectId: string, po: any, isApproving: boolean): Promise<void> {
+    const budgetItems = await this.getBudgetItems(projectId);
     const hasItemCategories = po.items && po.items.some((item: any) => item.budgetCategory);
-    
+
     if (hasItemCategories) {
-      // Update each category based on line items
-      const categoryTotals: { [key: string]: number } = {}; 
-      
+      const categoryTotals: { [key: string]: number } = {};
       po.items.forEach((item: any) => {
         const category = item.budgetCategory || po.budgetCategory;
         if (category) {
           categoryTotals[category] = (categoryTotals[category] || 0) + item.total;
         }
       });
-      
-      // Update each affected budget category
       for (const [category, amount] of Object.entries(categoryTotals)) {
-        const budgetItem = budgetItems.find(b => b.category === category);
+        const budgetItem = budgetItems.find((b) => b.category === category);
         if (budgetItem) {
           const currentReserved = budgetItem.reserved || 0;
-          const newReserved = isApproving 
-            ? currentReserved + amount 
+          const newReserved = isApproving
+            ? currentReserved + amount
             : Math.max(0, currentReserved - amount);
-          
-          this.updateBudgetItem(budgetItem.id, { reserved: newReserved });
+          await this.updateBudgetItem(budgetItem.id, { reserved: newReserved });
         }
       }
     } else if (po.budgetCategory) {
-      // Update single budget category
-      const budgetItem = budgetItems.find(b => b.category === po.budgetCategory);
+      const budgetItem = budgetItems.find((b) => b.category === po.budgetCategory);
       if (budgetItem) {
         const currentReserved = budgetItem.reserved || 0;
         const subtotal = po.subtotal || 0;
-        const newReserved = isApproving 
-          ? currentReserved + subtotal 
+        const newReserved = isApproving
+          ? currentReserved + subtotal
           : Math.max(0, currentReserved - subtotal);
-        
-        this.updateBudgetItem(budgetItem.id, { reserved: newReserved });
+        await this.updateBudgetItem(budgetItem.id, { reserved: newReserved });
       }
     }
   }
 
-  // Update budget actual amounts when payment is marked as paid
-  async updateBudgetActual(projectId: string, po: any, payment: any) {
-    const budgetItems = this.getBudgetItems(projectId);
-    
-    // Get categories from PO items or use PO-level category
+  async updateBudgetActual(projectId: string, po: any, payment: any): Promise<void> {
+    const budgetItems = await this.getBudgetItems(projectId);
     const hasItemCategories = po.items && po.items.some((item: any) => item.budgetCategory);
-    
+
     if (hasItemCategories && payment.lineItemPayments) {
-      // Update each category based on line item payments
       const categoryTotals: { [key: string]: number } = {};
-      
       payment.lineItemPayments.forEach((linePayment: any, index: number) => {
         const poItem = po.items[index];
         if (poItem) {
@@ -1102,438 +702,314 @@ class DataStore {
           }
         }
       });
-      
-      // Update each affected budget category
       for (const [category, amount] of Object.entries(categoryTotals)) {
-        const budgetItem = budgetItems.find(b => b.category === category);
+        const budgetItem = budgetItems.find((b) => b.category === category);
         if (budgetItem) {
-          const currentActual = budgetItem.actual || 0;
-          const newActual = currentActual + amount;
-          this.updateBudgetItem(budgetItem.id, { actual: newActual });
+          await this.updateBudgetItem(budgetItem.id, { actual: (budgetItem.actual || 0) + amount });
         }
       }
     } else if (po.budgetCategory) {
-      // Update single budget category
-      const budgetItem = budgetItems.find(b => b.category === po.budgetCategory);
+      const budgetItem = budgetItems.find((b) => b.category === po.budgetCategory);
       if (budgetItem) {
-        const currentActual = budgetItem.actual || 0;
         const subtotal = payment.subtotal || payment.amount || 0;
-        const newActual = currentActual + subtotal;
-        this.updateBudgetItem(budgetItem.id, { actual: newActual });
+        await this.updateBudgetItem(budgetItem.id, { actual: (budgetItem.actual || 0) + subtotal });
       }
     }
   }
 
   // Purchase Orders
-  async getPurchaseOrders(projectId?: string) {
-    // Direct localStorage access - no API call needed
-    const allPOs = [...this.purchaseOrders];
-    return projectId ? allPOs.filter((po: PurchaseOrder) => po.projectId === projectId) : allPOs;
+  async getPurchaseOrders(projectId?: string): Promise<PurchaseOrder[]> {
+    const all: PurchaseOrder[] = (await apiCall('/purchase-orders')) ?? [];
+    return projectId ? all.filter((po) => po.projectId === projectId) : all;
   }
-  
-  getPurchaseOrdersSync(projectId?: string) {
-    return projectId ? this.purchaseOrders.filter(po => po.projectId === projectId) : [...this.purchaseOrders];
+
+  // Kept for compatibility — components should migrate to async getPurchaseOrders()
+  getPurchaseOrdersSync(_projectId?: string): PurchaseOrder[] {
+    console.warn('getPurchaseOrdersSync: sync access not supported without localStorage. Use getPurchaseOrders() instead.');
+    return [];
   }
-  
-  getPurchaseOrder(id: string) { return this.purchaseOrders.find(po => po.id === id); }
-  
-  async addPurchaseOrder(po: Omit<PurchaseOrder, 'id' | 'createdAt' | 'poNumber'>) {
+
+  async getPurchaseOrder(id: string): Promise<PurchaseOrder | null> {
+    try {
+      return await apiCall(`/purchase-orders/${id}`);
+    } catch {
+      return null;
+    }
+  }
+
+  async addPurchaseOrder(po: Omit<PurchaseOrder, 'id' | 'createdAt' | 'poNumber'>): Promise<PurchaseOrder> {
     const poNumber = numberGenerator.generateNumber('purchaseOrder');
     const newPO = { ...po, poNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    try {
-      const saved = await apiCall('/purchase-orders', 'POST', newPO);
-      this.purchaseOrders.push(saved);
-      this.saveToLocalStorage();
-      return saved;
-    } catch (error) {
-      console.error('Error adding purchase order:', error);
-      this.purchaseOrders.push(newPO);
-      this.saveToLocalStorage();
-      return newPO;
-    }
+    return await apiCall('/purchase-orders', 'POST', newPO);
   }
-  
-  async updatePurchaseOrder(id: string, updates: Partial<PurchaseOrder>) {
-    try {
-      const updated = await apiCall(`/purchase-orders/${id}`, 'PUT', updates);
-      const index = this.purchaseOrders.findIndex(po => po.id === id);
-      if (index !== -1) {
-        this.purchaseOrders[index] = updated;
-        this.saveToLocalStorage();
-      }
-      return updated;
-    } catch (error) {
-      console.error('Error updating purchase order:', error);
-      const index = this.purchaseOrders.findIndex(po => po.id === id);
-      if (index !== -1) {
-        this.purchaseOrders[index] = { ...this.purchaseOrders[index], ...updates };
-        this.saveToLocalStorage();
-        return this.purchaseOrders[index];
-      }
-    }
+
+  async updatePurchaseOrder(id: string, updates: Partial<PurchaseOrder>): Promise<PurchaseOrder> {
+    return await apiCall(`/purchase-orders/${id}`, 'PUT', updates);
   }
-  
-  async deletePurchaseOrder(id: string) {
-    console.log('Deleting PO with ID:', id);
-    try {
-      await apiCall(`/purchase-orders/${id}`, 'DELETE');
-      const initialLength = this.purchaseOrders.length;
-      this.purchaseOrders = this.purchaseOrders.filter(po => po.id !== id);
-      const finalLength = this.purchaseOrders.length;
-      console.log(`POs before delete: ${initialLength}, after delete: ${finalLength}`);
-      this.saveToLocalStorage();
-      return true;
-    } catch (error) {
-      console.error('Error deleting purchase order from backend:', error);
-      // Still delete locally even if backend call fails
-      const initialLength = this.purchaseOrders.length;
-      this.purchaseOrders = this.purchaseOrders.filter(po => po.id !== id);
-      const finalLength = this.purchaseOrders.length;
-      console.log(`POs before delete: ${initialLength}, after delete: ${finalLength}`);
-      this.saveToLocalStorage();
-      return true;
-    }
+
+  async deletePurchaseOrder(id: string): Promise<boolean> {
+    await apiCall(`/purchase-orders/${id}`, 'DELETE');
+    return true;
   }
 
   // Variation Orders
-  getVariationOrders(poId?: string) {
-    return poId ? this.variationOrders.filter(vo => vo.poId === poId) : [...this.variationOrders];
+  async getVariationOrders(poId?: string): Promise<VariationOrder[]> {
+    const all: VariationOrder[] = (await apiCall('/variationOrders')) ?? [];
+    return poId ? all.filter((vo) => vo.poId === poId) : all;
   }
-  addVariationOrder(vo: Omit<VariationOrder, 'id' | 'createdAt' | 'voNumber'>) {
+
+  async addVariationOrder(vo: Omit<VariationOrder, 'id' | 'createdAt' | 'voNumber'>): Promise<VariationOrder> {
     const voNumber = numberGenerator.generateNumber('variationOrder');
     const newVO = { ...vo, voNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.variationOrders.push(newVO);
-    this.saveToLocalStorage();
-    return newVO;
+    return await apiCall('/variationOrders', 'POST', newVO);
   }
-  updateVariationOrder(id: string, updates: Partial<VariationOrder>) {
-    const index = this.variationOrders.findIndex(vo => vo.id === id);
-    if (index !== -1) {
-      this.variationOrders[index] = { ...this.variationOrders[index], ...updates };
-      this.saveToLocalStorage();
-      return this.variationOrders[index];
-    }
+
+  async updateVariationOrder(id: string, updates: Partial<VariationOrder>): Promise<VariationOrder> {
+    return await apiCall(`/variationOrders/${id}`, 'PUT', updates);
   }
 
   // Vendor Invoices
-  async getVendorInvoices(vendorId?: string) {
-    try {
-      const invoices = await apiCall('/vendorInvoices');
-      const allInvoices = invoices || [];
-      return vendorId ? allInvoices.filter((i: VendorInvoice) => i.vendorId === vendorId) : allInvoices;
-    } catch (error) {
-      console.error('Error getting vendor invoices:', error);
-      // Fallback to localStorage
-      return vendorId ? this.vendorInvoices.filter(i => i.vendorId === vendorId) : [...this.vendorInvoices];
-    }
-  }
-  
-  getVendorInvoicesSync(vendorId?: string) {
-    return vendorId ? this.vendorInvoices.filter(i => i.vendorId === vendorId) : [...this.vendorInvoices];
-  }
-  
-  async addVendorInvoice(invoice: Omit<VendorInvoice, 'id' | 'createdAt' | 'invoiceNumber'>) {
-    const invoiceNumber = numberGenerator.generateNumber('invoice');
-    const newInvoice = { ...invoice, invoiceNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    try {
-      const saved = await apiCall('/vendorInvoices', 'POST', newInvoice);
-      this.vendorInvoices.push(saved);
-      this.saveToLocalStorage();
-      return saved;
-    } catch (error) {
-      console.error('Error adding vendor invoice:', error);
-      this.vendorInvoices.push(newInvoice);
-      this.saveToLocalStorage();
-      return newInvoice;
-    }
-  }
-  
-  async updateVendorInvoice(id: string, updates: Partial<VendorInvoice>) {
-    try {
-      const updated = await apiCall(`/vendorInvoices/${id}`, 'PUT', updates);
-      const index = this.vendorInvoices.findIndex(i => i.id === id);
-      if (index !== -1) {
-        this.vendorInvoices[index] = updated;
-        this.saveToLocalStorage();
-      }
-      return updated;
-    } catch (error) {
-      console.error('Error updating vendor invoice:', error);
-      const index = this.vendorInvoices.findIndex(i => i.id === id);
-      if (index !== -1) {
-        this.vendorInvoices[index] = { ...this.vendorInvoices[index], ...updates };
-        this.saveToLocalStorage();
-        return this.vendorInvoices[index];
-      }
-    }
+  async getVendorInvoices(vendorId?: string): Promise<VendorInvoice[]> {
+    const all: VendorInvoice[] = (await apiCall('/vendorInvoices')) ?? [];
+    return vendorId ? all.filter((i) => i.vendorId === vendorId) : all;
   }
 
-  deleteVendorInvoice(id: string) {
-    this.vendorInvoices = this.vendorInvoices.filter(i => i.id !== id);
-    this.saveToLocalStorage();
+  // Kept for compatibility — components should migrate to async getVendorInvoices()
+  getVendorInvoicesSync(_vendorId?: string): VendorInvoice[] {
+    console.warn('getVendorInvoicesSync: sync access not supported without localStorage. Use getVendorInvoices() instead.');
+    return [];
+  }
+
+  async addVendorInvoice(invoice: Omit<VendorInvoice, 'id' | 'createdAt' | 'invoiceNumber'>): Promise<VendorInvoice> {
+    const invoiceNumber = numberGenerator.generateNumber('invoice');
+    const newInvoice = { ...invoice, invoiceNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
+    return await apiCall('/vendorInvoices', 'POST', newInvoice);
+  }
+
+  async updateVendorInvoice(id: string, updates: Partial<VendorInvoice>): Promise<VendorInvoice> {
+    return await apiCall(`/vendorInvoices/${id}`, 'PUT', updates);
+  }
+
+  async deleteVendorInvoice(id: string): Promise<void> {
+    await apiCall(`/vendorInvoices/${id}`, 'DELETE');
   }
 
   // Vendor Claims
-  getVendorClaims(vendorId?: string) {
-    return vendorId ? this.vendorClaims.filter(c => c.vendorId === vendorId) : [...this.vendorClaims];
+  async getVendorClaims(vendorId?: string): Promise<VendorClaim[]> {
+    const all: VendorClaim[] = (await apiCall('/vendorClaims')) ?? [];
+    return vendorId ? all.filter((c) => c.vendorId === vendorId) : all;
   }
-  addVendorClaim(claim: Omit<VendorClaim, 'id' | 'createdAt' | 'claimNumber'>) {
+
+  async addVendorClaim(claim: Omit<VendorClaim, 'id' | 'createdAt' | 'claimNumber'>): Promise<VendorClaim> {
     const claimNumber = numberGenerator.generateNumber('claim');
     const newClaim = { ...claim, claimNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.vendorClaims.push(newClaim);
-    this.saveToLocalStorage();
-    return newClaim;
+    return await apiCall('/vendorClaims', 'POST', newClaim);
   }
-  updateVendorClaim(id: string, updates: Partial<VendorClaim>) {
-    const index = this.vendorClaims.findIndex(c => c.id === id);
-    if (index !== -1) {
-      this.vendorClaims[index] = { ...this.vendorClaims[index], ...updates };
-      this.saveToLocalStorage();
-      return this.vendorClaims[index];
-    }
+
+  async updateVendorClaim(id: string, updates: Partial<VendorClaim>): Promise<VendorClaim> {
+    return await apiCall(`/vendorClaims/${id}`, 'PUT', updates);
   }
 
   // Customer Invoices
-  async getCustomerInvoices(customerId?: string) {
-    try {
-      const invoices = await apiCall('/customerInvoices');
-      const allInvoices = invoices || [];
-      return customerId ? allInvoices.filter((i: CustomerInvoice) => i.customerId === customerId) : allInvoices;
-    } catch (error) {
-      console.error('Error getting customer invoices:', error);
-      // Fallback to localStorage
-      return customerId ? this.customerInvoices.filter(i => i.customerId === customerId) : [...this.customerInvoices];
-    }
+  async getCustomerInvoices(customerId?: string): Promise<CustomerInvoice[]> {
+    const all: CustomerInvoice[] = (await apiCall('/customerInvoices')) ?? [];
+    return customerId ? all.filter((i) => i.customerId === customerId) : all;
   }
-  
-  getCustomerInvoicesSync(customerId?: string) {
-    return customerId ? this.customerInvoices.filter(i => i.customerId === customerId) : [...this.customerInvoices];
+
+  // Kept for compatibility — components should migrate to async getCustomerInvoices()
+  getCustomerInvoicesSync(_customerId?: string): CustomerInvoice[] {
+    console.warn('getCustomerInvoicesSync: sync access not supported without localStorage. Use getCustomerInvoices() instead.');
+    return [];
   }
-  
-  async addCustomerInvoice(invoice: Omit<CustomerInvoice, 'id' | 'createdAt' | 'invoiceNumber'>) {
+
+  async addCustomerInvoice(invoice: Omit<CustomerInvoice, 'id' | 'createdAt' | 'invoiceNumber'>): Promise<CustomerInvoice> {
     const invoiceNumber = numberGenerator.generateNumber('invoice');
     const newInvoice = { ...invoice, invoiceNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    try {
-      const saved = await apiCall('/customerInvoices', 'POST', newInvoice);
-      this.customerInvoices.push(saved);
-      this.saveToLocalStorage();
-      return saved;
-    } catch (error) {
-      console.error('Error adding customer invoice:', error);
-      this.customerInvoices.push(newInvoice);
-      this.saveToLocalStorage();
-      return newInvoice;
-    }
+    return await apiCall('/customerInvoices', 'POST', newInvoice);
   }
-  
-  async updateCustomerInvoice(id: string, updates: Partial<CustomerInvoice>) {
-    try {
-      const updated = await apiCall(`/customerInvoices/${id}`, 'PUT', updates);
-      const index = this.customerInvoices.findIndex(i => i.id === id);
-      if (index !== -1) {
-        this.customerInvoices[index] = updated;
-        this.saveToLocalStorage();
-      }
-      return updated;
-    } catch (error) {
-      console.error('Error updating customer invoice:', error);
-      const index = this.customerInvoices.findIndex(i => i.id === id);
-      if (index !== -1) {
-        this.customerInvoices[index] = { ...this.customerInvoices[index], ...updates };
-        this.saveToLocalStorage();
-        return this.customerInvoices[index];
-      }
-    }
+
+  async updateCustomerInvoice(id: string, updates: Partial<CustomerInvoice>): Promise<CustomerInvoice> {
+    return await apiCall(`/customerInvoices/${id}`, 'PUT', updates);
   }
 
   // Payment Requests
-  getPaymentRequests() { return [...this.paymentRequests]; }
-  addPaymentRequest(request: Omit<PaymentRequest, 'id' | 'createdAt' | 'requestNumber'>) {
+  async getPaymentRequests(): Promise<PaymentRequest[]> {
+    return (await apiCall('/paymentRequests')) ?? [];
+  }
+
+  async addPaymentRequest(request: Omit<PaymentRequest, 'id' | 'createdAt' | 'requestNumber'>): Promise<PaymentRequest> {
     const requestNumber = numberGenerator.generateNumber('payment');
     const newRequest = { ...request, requestNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.paymentRequests.push(newRequest);
-    this.saveToLocalStorage();
-    return newRequest;
+    return await apiCall('/paymentRequests', 'POST', newRequest);
   }
-  updatePaymentRequest(id: string, updates: Partial<PaymentRequest>) {
-    const index = this.paymentRequests.findIndex(r => r.id === id);
-    if (index !== -1) {
-      this.paymentRequests[index] = { ...this.paymentRequests[index], ...updates };
-      this.saveToLocalStorage();
-      return this.paymentRequests[index];
-    }
+
+  async updatePaymentRequest(id: string, updates: Partial<PaymentRequest>): Promise<PaymentRequest> {
+    return await apiCall(`/paymentRequests/${id}`, 'PUT', updates);
   }
 
   // Payments
-  getPayments(projectId?: string) {
-    return projectId ? this.payments.filter(p => p.projectId === projectId) : [...this.payments];
-  }
-  generatePaymentNumber() {
-    return Promise.resolve(numberGenerator.previewNextNumber('payment'));
-  }
-  addPayment(payment: Omit<Payment, 'id' | 'createdAt' | 'paymentNumber'>) {
-    const paymentNumber = numberGenerator.generateNumber('payment');
-    const newPayment = { ...payment, paymentNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.payments.push(newPayment);
-    this.saveToLocalStorage();
-    return newPayment;
-  }
-  updatePayment(id: string, updates: Partial<Payment>) {
-    const index = this.payments.findIndex(p => p.id === id);
-    if (index !== -1) {
-      this.payments[index] = { ...this.payments[index], ...updates };
-      this.saveToLocalStorage();
-      return this.payments[index];
-    }
-  }
-  
-  deletePayment(id: string) {
-    this.payments = this.payments.filter(p => p.id !== id);
-    this.saveToLocalStorage();
+  async getPayments(projectId?: string): Promise<Payment[]> {
+    const all: Payment[] = (await apiCall('/payments')) ?? [];
+    return projectId ? all.filter((p) => p.projectId === projectId) : all;
   }
 
-  // Documents
-  getDocuments(projectId: string) {
-    return this.documents.filter(d => d.projectId === projectId);
+  generatePaymentNumber(): Promise<string> {
+    return Promise.resolve(numberGenerator.previewNextNumber('payment'));
   }
-  addDocument(doc: Omit<Document, 'id'>) {
+
+  async addPayment(payment: Omit<Payment, 'id' | 'createdAt' | 'paymentNumber'>): Promise<Payment> {
+    const paymentNumber = numberGenerator.generateNumber('payment');
+    const newPayment = { ...payment, paymentNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
+    return await apiCall('/payments', 'POST', newPayment);
+  }
+
+  async updatePayment(id: string, updates: Partial<Payment>): Promise<Payment> {
+    return await apiCall(`/payments/${id}`, 'PUT', updates);
+  }
+
+  async deletePayment(id: string): Promise<void> {
+    await apiCall(`/payments/${id}`, 'DELETE');
+  }
+
+  // Documents (stored as project-scoped records in the documents KV namespace)
+  async getDocuments(projectId: string): Promise<Document[]> {
+    const all: Document[] = (await apiCall('/documents')) ?? [];
+    return all.filter((d) => d.projectId === projectId);
+  }
+
+  async addDocument(doc: Omit<Document, 'id'>): Promise<Document> {
     const newDoc = { ...doc, id: Date.now().toString() };
-    this.documents.push(newDoc);
-    this.saveToLocalStorage();
-    return newDoc;
+    return await apiCall('/documents', 'POST', newDoc);
   }
-  deleteDocument(id: string) {
-    this.documents = this.documents.filter(d => d.id !== id);
-    this.saveToLocalStorage();
+
+  async deleteDocument(id: string): Promise<void> {
+    await apiCall(`/documents/${id}`, 'DELETE');
   }
 
   // Print Templates
-  getPrintTemplates(type?: PrintTemplate['type']) {
-    return type ? this.printTemplates.filter(t => t.type === type) : [...this.printTemplates];
+  async getPrintTemplates(type?: PrintTemplate['type']): Promise<PrintTemplate[]> {
+    const all: PrintTemplate[] = (await apiCall('/printTemplates')) ?? [];
+    return type ? all.filter((t) => t.type === type) : all;
   }
-  addPrintTemplate(template: Omit<PrintTemplate, 'id' | 'createdAt'>) {
+
+  async addPrintTemplate(template: Omit<PrintTemplate, 'id' | 'createdAt'>): Promise<PrintTemplate> {
     const newTemplate = { ...template, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.printTemplates.push(newTemplate);
-    this.saveToLocalStorage();
-    return newTemplate;
+    return await apiCall('/printTemplates', 'POST', newTemplate);
   }
-  updatePrintTemplate(id: string, updates: Partial<PrintTemplate>) {
-    const index = this.printTemplates.findIndex(t => t.id === id);
-    if (index !== -1) {
-      this.printTemplates[index] = { ...this.printTemplates[index], ...updates };
-      this.saveToLocalStorage();
-      return this.printTemplates[index];
+
+  async updatePrintTemplate(id: string, updates: Partial<PrintTemplate>): Promise<PrintTemplate> {
+    return await apiCall(`/printTemplates/${id}`, 'PUT', updates);
+  }
+
+  async setDefaultTemplate(id: string, type: PrintTemplate['type']): Promise<void> {
+    const all = await this.getPrintTemplates(type);
+    for (const t of all) {
+      await apiCall(`/printTemplates/${t.id}`, 'PUT', { isDefault: t.id === id });
     }
-  }
-  setDefaultTemplate(id: string, type: PrintTemplate['type']) {
-    this.printTemplates = this.printTemplates.map(t =>
-      t.type === type ? { ...t, isDefault: t.id === id } : t
-    );
-    this.saveToLocalStorage();
   }
 
   // Users
-  getUsers() { return [...this.users]; }
-  getUser(id: string) { return this.users.find(u => u.id === id); }
-  addUser(user: Omit<SystemUser, 'id' | 'createdAt'>) {
+  async getUsers(): Promise<SystemUser[]> {
+    return (await apiCall('/users')) ?? [];
+  }
+
+  async getUser(id: string): Promise<SystemUser | null> {
+    try {
+      return await apiCall(`/users/${id}`);
+    } catch {
+      return null;
+    }
+  }
+
+  async addUser(user: Omit<SystemUser, 'id' | 'createdAt'>): Promise<SystemUser> {
     const newUser = { ...user, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.users.push(newUser);
-    
-    // Link the user to the employee if employeeId is provided
+    const saved = await apiCall('/users', 'POST', newUser);
+    // Link user to employee if employeeId provided
     if (newUser.employeeId) {
-      const employeeIndex = this.employees.findIndex(e => e.id === newUser.employeeId);
-      if (employeeIndex !== -1) {
-        this.employees[employeeIndex].userId = newUser.id;
+      try {
+        await apiCall(`/employees/${newUser.employeeId}`, 'PUT', { userId: newUser.id });
+      } catch {
+        // Non-fatal: employee linking is best-effort
       }
     }
-    
-    this.saveToLocalStorage();
-    return newUser;
+    return saved;
   }
-  updateUser(id: string, updates: Partial<SystemUser>) {
-    const index = this.users.findIndex(u => u.id === id);
-    if (index !== -1) {
-      this.users[index] = { ...this.users[index], ...updates };
-      this.saveToLocalStorage();
-      return this.users[index];
-    }
+
+  async updateUser(id: string, updates: Partial<SystemUser>): Promise<SystemUser> {
+    return await apiCall(`/users/${id}`, 'PUT', updates);
   }
-  deleteUser(id: string) {
-    this.users = this.users.filter(u => u.id !== id);
-    this.saveToLocalStorage();
+
+  async deleteUser(id: string): Promise<void> {
+    await apiCall(`/users/${id}`, 'DELETE');
   }
 
   // Project Manpower
-  getProjectManpower(projectId: string) {
-    return this.projectManpower.find(pm => pm.projectId === projectId) || null;
+  async getProjectManpower(projectId: string): Promise<ProjectManpower | null> {
+    const all: ProjectManpower[] = (await apiCall('/projectManpower')) ?? [];
+    return all.find((pm) => pm.projectId === projectId) ?? null;
   }
-  addProjectManpower(manpower: Omit<ProjectManpower, 'id' | 'createdAt'>) {
+
+  async addProjectManpower(manpower: Omit<ProjectManpower, 'id' | 'createdAt'>): Promise<ProjectManpower> {
     const newManpower = { ...manpower, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.projectManpower.push(newManpower);
-    this.saveToLocalStorage();
-    return newManpower;
+    return await apiCall('/projectManpower', 'POST', newManpower);
   }
-  updateProjectManpower(id: string, updates: Partial<ProjectManpower>) {
-    const index = this.projectManpower.findIndex(pm => pm.id === id);
-    if (index !== -1) {
-      this.projectManpower[index] = { ...this.projectManpower[index], ...updates };
-      this.saveToLocalStorage();
-      return this.projectManpower[index];
-    }
+
+  async updateProjectManpower(id: string, updates: Partial<ProjectManpower>): Promise<ProjectManpower> {
+    return await apiCall(`/projectManpower/${id}`, 'PUT', updates);
   }
-  deleteProjectManpower(id: string) {
-    this.projectManpower = this.projectManpower.filter(pm => pm.id !== id);
-    this.saveToLocalStorage();
+
+  async deleteProjectManpower(id: string): Promise<void> {
+    await apiCall(`/projectManpower/${id}`, 'DELETE');
   }
 
   // Manpower Members
-  getManpowerMembers(projectId: string) {
-    return this.manpowerMembers.filter(m => m.projectId === projectId);
+  async getManpowerMembers(projectId: string): Promise<ManpowerMember[]> {
+    const all: ManpowerMember[] = (await apiCall('/manpowerMembers')) ?? [];
+    return all.filter((m) => m.projectId === projectId);
   }
-  addManpowerMember(member: Omit<ManpowerMember, 'id' | 'createdAt'>) {
+
+  async addManpowerMember(member: Omit<ManpowerMember, 'id' | 'createdAt'>): Promise<ManpowerMember> {
     const newMember = { ...member, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.manpowerMembers.push(newMember);
-    this.saveToLocalStorage();
-    return newMember;
+    return await apiCall('/manpowerMembers', 'POST', newMember);
   }
-  updateManpowerMember(id: string, updates: Partial<ManpowerMember>) {
-    const index = this.manpowerMembers.findIndex(m => m.id === id);
-    if (index !== -1) {
-      this.manpowerMembers[index] = { ...this.manpowerMembers[index], ...updates };
-      this.saveToLocalStorage();
-      return this.manpowerMembers[index];
-    }
+
+  async updateManpowerMember(id: string, updates: Partial<ManpowerMember>): Promise<ManpowerMember> {
+    return await apiCall(`/manpowerMembers/${id}`, 'PUT', updates);
   }
-  deleteManpowerMember(id: string) {
-    this.manpowerMembers = this.manpowerMembers.filter(m => m.id !== id);
-    this.saveToLocalStorage();
+
+  async deleteManpowerMember(id: string): Promise<void> {
+    await apiCall(`/manpowerMembers/${id}`, 'DELETE');
   }
 
   // Employees
-  getEmployees() { return [...this.employees]; }
-  getEmployee(id: string) { return this.employees.find(e => e.id === id); }
-  addEmployee(employee: Omit<Employee, 'id' | 'createdAt' | 'employeeId'>) {
-    const employeeId = numberGenerator.generateNumber('employee');
-    const newEmployee = { ...employee, employeeId, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    this.employees.push(newEmployee);
-    this.saveToLocalStorage();
-    return newEmployee;
+  async getEmployees(): Promise<Employee[]> {
+    return (await apiCall('/employees')) ?? [];
   }
-  updateEmployee(id: string, updates: Partial<Employee>) {
-    const index = this.employees.findIndex(e => e.id === id);
-    if (index !== -1) {
-      this.employees[index] = { ...this.employees[index], ...updates, updatedAt: new Date().toISOString() };
-      this.saveToLocalStorage();
-      return this.employees[index];
+
+  async getEmployee(id: string): Promise<Employee | null> {
+    try {
+      return await apiCall(`/employees/${id}`);
+    } catch {
+      return null;
     }
   }
-  deleteEmployee(id: string) {
-    this.employees = this.employees.filter(e => e.id !== id);
-    this.saveToLocalStorage();
+
+  async addEmployee(employee: Omit<Employee, 'id' | 'createdAt' | 'employeeId'>): Promise<Employee> {
+    const employeeId = numberGenerator.generateNumber('employee');
+    const newEmployee = { ...employee, employeeId, id: Date.now().toString(), createdAt: new Date().toISOString() };
+    return await apiCall('/employees', 'POST', newEmployee);
+  }
+
+  async updateEmployee(id: string, updates: Partial<Employee>): Promise<Employee> {
+    return await apiCall(`/employees/${id}`, 'PUT', { ...updates, updatedAt: new Date().toISOString() });
+  }
+
+  async deleteEmployee(id: string): Promise<void> {
+    await apiCall(`/employees/${id}`, 'DELETE');
   }
 
   // Budget Categories
-  private defaultCategories: string[] = [
+  private readonly defaultCategories: string[] = [
     'Fitout',
     'Construction',
     'Electrical',
@@ -1543,53 +1019,48 @@ class DataStore {
     'Furniture (FF&E)',
     'Landscaping',
     'Manpower',
-    'Other'
+    'Other',
   ];
 
-  getBudgetCategories(): string[] {
-    const stored = localStorage.getItem('budget_categories');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('Failed to parse budget categories');
-      }
+  async getBudgetCategories(): Promise<string[]> {
+    try {
+      const categories = await apiCall('/budgetCategories');
+      return categories ?? [...this.defaultCategories];
+    } catch {
+      return [...this.defaultCategories];
     }
-    // Initialize with default categories
-    this.saveBudgetCategories(this.defaultCategories);
-    return [...this.defaultCategories];
   }
 
-  saveBudgetCategories(categories: string[]) {
-    localStorage.setItem('budget_categories', JSON.stringify(categories));
+  async saveBudgetCategories(categories: string[]): Promise<void> {
+    await apiCall('/budgetCategories', 'PUT', { categories });
   }
 
-  addBudgetCategory(category: string) {
-    const categories = this.getBudgetCategories();
+  async addBudgetCategory(category: string): Promise<boolean> {
+    const categories = await this.getBudgetCategories();
     if (!categories.includes(category)) {
       categories.push(category);
-      this.saveBudgetCategories(categories);
+      await this.saveBudgetCategories(categories);
       return true;
     }
     return false;
   }
 
-  removeBudgetCategory(category: string) {
-    const categories = this.getBudgetCategories();
-    const filtered = categories.filter(c => c !== category);
+  async removeBudgetCategory(category: string): Promise<boolean> {
+    const categories = await this.getBudgetCategories();
+    const filtered = categories.filter((c) => c !== category);
     if (filtered.length !== categories.length) {
-      this.saveBudgetCategories(filtered);
+      await this.saveBudgetCategories(filtered);
       return true;
     }
     return false;
   }
 
-  updateBudgetCategory(oldCategory: string, newCategory: string) {
-    const categories = this.getBudgetCategories();
+  async updateBudgetCategory(oldCategory: string, newCategory: string): Promise<boolean> {
+    const categories = await this.getBudgetCategories();
     const index = categories.indexOf(oldCategory);
     if (index !== -1 && !categories.includes(newCategory)) {
       categories[index] = newCategory;
-      this.saveBudgetCategories(categories);
+      await this.saveBudgetCategories(categories);
       return true;
     }
     return false;

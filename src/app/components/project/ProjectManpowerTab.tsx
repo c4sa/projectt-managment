@@ -62,8 +62,8 @@ export function ProjectManpowerTab({ projectId }: Props) {
     loadMembers();
   }, [projectId]);
 
-  const loadMembers = () => {
-    const data = dataStore.getManpowerMembers(projectId);
+  const loadMembers = async () => {
+    const data = await dataStore.getManpowerMembers(projectId);
     setMembers(data);
   };
 

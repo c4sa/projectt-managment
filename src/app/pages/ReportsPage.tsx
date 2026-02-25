@@ -12,20 +12,28 @@ export function ReportsPage() {
   const [vendorInvoices, setVendorInvoices] = useState<VendorInvoice[]>([]);
   const [customerInvoices, setCustomerInvoices] = useState<CustomerInvoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [budgetItemsByProject, setBudgetItemsByProject] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [projectsData, vendorInvoicesData, customerInvoicesData] = await Promise.all([
+        const [projectsData, vendorInvoicesData, customerInvoicesData, paymentsData] = await Promise.all([
           dataStore.getProjects(),
           dataStore.getVendorInvoices(),
           dataStore.getCustomerInvoices(),
+          dataStore.getPayments(),
         ]);
         setProjects(projectsData);
         setVendorInvoices(vendorInvoicesData);
         setCustomerInvoices(customerInvoicesData);
-        setPayments(dataStore.getPayments());
+        setPayments(paymentsData);
+
+        // Load budget items for all projects
+        const budgetEntries = await Promise.all(
+          projectsData.map(async p => [p.id, await dataStore.getBudgetItems(p.id)] as [string, any[]])
+        );
+        setBudgetItemsByProject(Object.fromEntries(budgetEntries));
       } catch (error) {
         console.error('Error loading report data:', error);
       } finally {
@@ -412,8 +420,8 @@ export function ReportsPage() {
         <TabsContent value="projects" className="mt-6">
           {(() => {
             const projectData = projects.map(project => {
-              const budgetItems = dataStore.getBudgetItems(project.id);
-              const totalBudget = budgetItems.reduce((s, b) => s + b.budgeted, 0) || project.budget || 0;
+              const budgetItems = budgetItemsByProject[project.id] ?? [];
+              const totalBudget = budgetItems.reduce((s: number, b: any) => s + b.budgeted, 0) || project.budget || 0;
               const projectVendorInvoices = vendorInvoices.filter(i => i.projectId === project.id);
               const projectCustomerInvoices = customerInvoices.filter(i => i.projectId === project.id);
               const projectPayments = payments.filter(p => p.projectId === project.id);

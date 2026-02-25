@@ -16,18 +16,18 @@ export function BudgetCategoriesSettings() {
     loadCategories();
   }, []);
 
-  const loadCategories = () => {
-    const cats = dataStore.getBudgetCategories();
+  const loadCategories = async () => {
+    const cats = await dataStore.getBudgetCategories();
     setCategories(cats);
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (!newCategory.trim()) {
       toast.error('Please enter a category name');
       return;
     }
 
-    const success = dataStore.addBudgetCategory(newCategory.trim());
+    const success = await dataStore.addBudgetCategory(newCategory.trim());
     if (success) {
       toast.success('Category added successfully');
       setNewCategory('');
@@ -37,9 +37,9 @@ export function BudgetCategoriesSettings() {
     }
   };
 
-  const handleRemoveCategory = (category: string) => {
+  const handleRemoveCategory = async (category: string) => {
     if (confirm(`Are you sure you want to remove "${category}"? This will not affect existing budget items.`)) {
-      const success = dataStore.removeBudgetCategory(category);
+      const success = await dataStore.removeBudgetCategory(category);
       if (success) {
         toast.success('Category removed successfully');
         loadCategories();
@@ -59,7 +59,7 @@ export function BudgetCategoriesSettings() {
     setEditingValue('');
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingValue.trim()) {
       toast.error('Please enter a category name');
       return;
@@ -67,8 +67,8 @@ export function BudgetCategoriesSettings() {
 
     if (editingIndex !== null) {
       const oldCategory = categories[editingIndex];
-      const success = dataStore.updateBudgetCategory(oldCategory, editingValue.trim());
-      
+      const success = await dataStore.updateBudgetCategory(oldCategory, editingValue.trim());
+
       if (success) {
         toast.success('Category updated successfully');
         setEditingIndex(null);

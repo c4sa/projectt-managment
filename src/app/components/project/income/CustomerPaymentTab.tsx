@@ -61,7 +61,7 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
     const projectInvoices = invoicesData.filter((inv: any) => inv.projectId === projectId);
     setInvoices(projectInvoices);
 
-    const paymentsData = dataStore.getPayments(projectId);
+    const paymentsData = await dataStore.getPayments(projectId);
     const customerPayments = paymentsData.filter((p: any) => p.type === 'receipt');
     setPayments(customerPayments);
   };

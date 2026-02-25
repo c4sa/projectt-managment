@@ -32,6 +32,7 @@ export function ProjectDetailPage() {
   const [totalBudgeted, setTotalBudgeted] = useState(0);
   const [totalReserved, setTotalReserved] = useState(0);
   const [totalActualSpent, setTotalActualSpent] = useState(0);
+  const [tasks, setTasks] = useState<any[]>([]);
 
   // Load project data
   useEffect(() => {
@@ -67,12 +68,16 @@ export function ProjectDetailPage() {
     const loadFinancialData = async () => {
       if (!id) return;
       
-      const budgetItems = dataStore.getBudgetItems(id);
-      const purchaseOrders = await dataStore.getPurchaseOrders(id);
-      const payments = dataStore.getPayments(id);
-      const vendorInvoices = await dataStore.getVendorInvoices();
+      const [budgetItems, purchaseOrders, payments, vendorInvoices, variationOrders, tasksData] = await Promise.all([
+        dataStore.getBudgetItems(id),
+        dataStore.getPurchaseOrders(id),
+        dataStore.getPayments(id),
+        dataStore.getVendorInvoices(),
+        dataStore.getVariationOrders(),
+        dataStore.getTasks(id),
+      ]);
+      setTasks(tasksData);
       const projectInvoices = vendorInvoices.filter((inv: any) => inv.projectId === id);
-      const variationOrders = dataStore.getVariationOrders();
       const projectVOs = variationOrders.filter((vo: any) => {
         const po = purchaseOrders.find((p: any) => p.id === vo.poId);
         return po && po.projectId === id;
@@ -375,7 +380,6 @@ export function ProjectDetailPage() {
 
         <TabsContent value="gantt" className="mt-6">
           {(() => {
-            const tasks = dataStore.getTasks(project.id);
             const projectStart = project.startDate ? new Date(project.startDate) : new Date();
             const projectEnd = project.endDate ? new Date(project.endDate) : new Date(projectStart.getTime() + 90 * 24 * 60 * 60 * 1000);
             const totalDays = Math.max(1, Math.ceil((projectEnd.getTime() - projectStart.getTime()) / (24 * 60 * 60 * 1000)));

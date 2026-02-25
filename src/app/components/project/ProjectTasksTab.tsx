@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { dataStore, Task, TaskStatus, TaskPriority } from '../../data/store';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -121,9 +121,18 @@ function DroppableColumn({ status, label, color, tasks, onDrop, onUpdate }: Drop
 }
 
 export function ProjectTasksTab({ projectId }: Props) {
-  const [tasks, setTasks] = useState(dataStore.getTasks(projectId));
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const loadTasks = async () => {
+    const data = await dataStore.getTasks(projectId);
+    setTasks(data);
+  };
+
+  useEffect(() => {
+    loadTasks();
+  }, [projectId]);
 
   const [newTask, setNewTask] = useState({
     title: '',
@@ -133,8 +142,8 @@ export function ProjectTasksTab({ projectId }: Props) {
     dueDate: '',
   });
 
-  const handleCreateTask = () => {
-    dataStore.addTask({
+  const handleCreateTask = async () => {
+    await dataStore.addTask({
       projectId,
       ...newTask,
       assignees: [],
@@ -142,7 +151,7 @@ export function ProjectTasksTab({ projectId }: Props) {
       customFields: {},
       comments: [],
     });
-    setTasks(dataStore.getTasks(projectId));
+    await loadTasks();
     setDialogOpen(false);
     setNewTask({
       title: '',
@@ -153,9 +162,9 @@ export function ProjectTasksTab({ projectId }: Props) {
     });
   };
 
-  const handleTaskDrop = (taskId: string, newStatus: TaskStatus) => {
-    dataStore.updateTask(taskId, { status: newStatus });
-    setTasks(dataStore.getTasks(projectId));
+  const handleTaskDrop = async (taskId: string, newStatus: TaskStatus) => {
+    await dataStore.updateTask(taskId, { status: newStatus });
+    await loadTasks();
   };
 
   return (
@@ -264,7 +273,7 @@ export function ProjectTasksTab({ projectId }: Props) {
                   {...column}
                   tasks={columnTasks}
                   onDrop={handleTaskDrop}
-                  onUpdate={() => setTasks(dataStore.getTasks(projectId))}
+                  onUpdate={loadTasks}
                 />
               );
             })}
