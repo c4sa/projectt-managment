@@ -1,13 +1,34 @@
 // This file contains the data store and types for all modules
 // Data is persisted via the API (Express locally, Vercel serverless in production)
-// which stores everything in Supabase (kv_store_02fd4b7a table).
+// which stores everything in Supabase relational tables.
 
-import { numberGenerator } from '../utils/numberGenerator';
 import { getAccessToken, notifyUnauthorized } from '../lib/authClient';
+import { numberGenerator, NumberSequences } from '../utils/numberGenerator';
 
 // API base: set VITE_API_BASE_URL=http://localhost:3000 in .env.local for local dev.
 // On Vercel, leave it unset and the app uses relative /api/... paths.
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
+
+// Generate the next number for a sequence type.
+// Gets the counter from the server (atomic increment in DB), then formats
+// it using the local sequence config (prefix, year, padding etc.).
+async function nextNumber(type: string): Promise<string> {
+  try {
+    const result = await apiCall(`/sequences/${type}/next`, 'POST');
+    const counter: number = result.current;
+    // Format using local config — mirrors NumberGenerator.formatNumber
+    const seq = numberGenerator.getSequence(type as keyof NumberSequences);
+    const parts: string[] = [seq.prefix];
+    const now = new Date();
+    if (seq.includeYear) parts.push(now.getFullYear().toString());
+    if (seq.includeMonth) parts.push((now.getMonth() + 1).toString().padStart(2, '0'));
+    parts.push(counter.toString().padStart(seq.padding, '0'));
+    return parts.join(seq.separator);
+  } catch {
+    // Fallback to local generator if API unavailable
+    return numberGenerator.generateNumber(type);
+  }
+}
 
 // Helper function for API calls
 async function apiCall(endpoint: string, method: string = 'GET', body?: any) {
@@ -481,7 +502,7 @@ class DataStore {
   }
 
   async addProject(project: Omit<Project, 'id' | 'createdAt' | 'code'>): Promise<Project> {
-    const code = numberGenerator.generateNumber('project');
+    const code = await nextNumber('project');
     const newProject = { ...project, code, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/projects', 'POST', newProject);
   }
@@ -508,7 +529,7 @@ class DataStore {
   }
 
   async addCustomer(customer: Omit<Customer, 'id' | 'createdAt' | 'code'>): Promise<Customer> {
-    const code = numberGenerator.generateNumber('customer');
+    const code = await nextNumber('customer');
     const newCustomer = { ...customer, id: Date.now().toString(), code, createdAt: new Date().toISOString() };
     return await apiCall('/customers', 'POST', newCustomer);
   }
@@ -536,7 +557,7 @@ class DataStore {
   }
 
   async addVendor(vendor: Omit<Vendor, 'id' | 'createdAt' | 'code'>): Promise<Vendor> {
-    const code = numberGenerator.generateNumber('vendor');
+    const code = await nextNumber('vendor');
     const newVendor = { ...vendor, id: Date.now().toString(), code, createdAt: new Date().toISOString() };
     return await apiCall('/vendors', 'POST', newVendor);
   }
@@ -746,7 +767,7 @@ class DataStore {
   }
 
   async addPurchaseOrder(po: Omit<PurchaseOrder, 'id' | 'createdAt' | 'poNumber'>): Promise<PurchaseOrder> {
-    const poNumber = numberGenerator.generateNumber('purchaseOrder');
+    const poNumber = await nextNumber('purchaseOrder');
     const newPO = { ...po, poNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/purchase-orders', 'POST', newPO);
   }
@@ -767,7 +788,7 @@ class DataStore {
   }
 
   async addVariationOrder(vo: Omit<VariationOrder, 'id' | 'createdAt' | 'voNumber'>): Promise<VariationOrder> {
-    const voNumber = numberGenerator.generateNumber('variationOrder');
+    const voNumber = await nextNumber('variationOrder');
     const newVO = { ...vo, voNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/variationOrders', 'POST', newVO);
   }
@@ -789,7 +810,7 @@ class DataStore {
   }
 
   async addVendorInvoice(invoice: Omit<VendorInvoice, 'id' | 'createdAt' | 'invoiceNumber'>): Promise<VendorInvoice> {
-    const invoiceNumber = numberGenerator.generateNumber('invoice');
+    const invoiceNumber = await nextNumber('invoice');
     const newInvoice = { ...invoice, invoiceNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/vendorInvoices', 'POST', newInvoice);
   }
@@ -809,7 +830,7 @@ class DataStore {
   }
 
   async addVendorClaim(claim: Omit<VendorClaim, 'id' | 'createdAt' | 'claimNumber'>): Promise<VendorClaim> {
-    const claimNumber = numberGenerator.generateNumber('claim');
+    const claimNumber = await nextNumber('claim');
     const newClaim = { ...claim, claimNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/vendorClaims', 'POST', newClaim);
   }
@@ -831,7 +852,7 @@ class DataStore {
   }
 
   async addCustomerInvoice(invoice: Omit<CustomerInvoice, 'id' | 'createdAt' | 'invoiceNumber'>): Promise<CustomerInvoice> {
-    const invoiceNumber = numberGenerator.generateNumber('invoice');
+    const invoiceNumber = await nextNumber('invoice');
     const newInvoice = { ...invoice, invoiceNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/customerInvoices', 'POST', newInvoice);
   }
@@ -846,7 +867,7 @@ class DataStore {
   }
 
   async addPaymentRequest(request: Omit<PaymentRequest, 'id' | 'createdAt' | 'requestNumber'>): Promise<PaymentRequest> {
-    const requestNumber = numberGenerator.generateNumber('payment');
+    const requestNumber = await nextNumber('payment');
     const newRequest = { ...request, requestNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/paymentRequests', 'POST', newRequest);
   }
@@ -861,12 +882,24 @@ class DataStore {
     return projectId ? all.filter((p) => p.projectId === projectId) : all;
   }
 
-  generatePaymentNumber(): Promise<string> {
-    return Promise.resolve(numberGenerator.previewNextNumber('payment'));
+  async generatePaymentNumber(): Promise<string> {
+    try {
+      const result = await apiCall('/sequences/payment', 'GET');
+      const counter: number = result.current;
+      const seq = numberGenerator.getSequence('payment');
+      const parts = [seq.prefix];
+      const now = new Date();
+      if (seq.includeYear) parts.push(now.getFullYear().toString());
+      if (seq.includeMonth) parts.push((now.getMonth() + 1).toString().padStart(2, '0'));
+      parts.push(counter.toString().padStart(seq.padding, '0'));
+      return parts.join(seq.separator);
+    } catch {
+      return numberGenerator.previewNextNumber('payment');
+    }
   }
 
   async addPayment(payment: Omit<Payment, 'id' | 'createdAt' | 'paymentNumber'>): Promise<Payment> {
-    const paymentNumber = numberGenerator.generateNumber('payment');
+    const paymentNumber = await nextNumber('payment');
     const newPayment = { ...payment, paymentNumber, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/payments', 'POST', newPayment);
   }
@@ -881,8 +914,7 @@ class DataStore {
 
   // Documents (stored as project-scoped records in the documents KV namespace)
   async getDocuments(projectId: string): Promise<Document[]> {
-    const all: Document[] = (await apiCall('/documents')) ?? [];
-    return all.filter((d) => d.projectId === projectId);
+    return (await apiCall(`/documents?projectId=${projectId}`)) ?? [];
   }
 
   async addDocument(doc: Omit<Document, 'id'>): Promise<Document> {
@@ -1003,7 +1035,7 @@ class DataStore {
   }
 
   async addEmployee(employee: Omit<Employee, 'id' | 'createdAt' | 'employeeId'>): Promise<Employee> {
-    const employeeId = numberGenerator.generateNumber('employee');
+    const employeeId = await nextNumber('employee');
     const newEmployee = { ...employee, employeeId, id: Date.now().toString(), createdAt: new Date().toISOString() };
     return await apiCall('/employees', 'POST', newEmployee);
   }

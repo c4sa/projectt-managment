@@ -248,3 +248,34 @@ export const numberGenerator = new NumberGenerator();
 
 // Check for period changes on load
 numberGenerator.checkAndResetPeriodic();
+
+// ─── API-backed preview ───────────────────────────────────────────────────────
+// Fetches the next number preview from the server's number_sequences table.
+// Falls back to the local generator if the API is unavailable.
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
+
+export async function previewNextNumber(type: keyof NumberSequences): Promise<string> {
+  try {
+    const { getAccessToken } = await import('../lib/authClient');
+    const token = await getAccessToken();
+    const res = await fetch(`${API_BASE}/sequences/${type}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('API unavailable');
+    const json = await res.json();
+    if (!json.success) throw new Error('API error');
+    // API returns { entity, current } — format using local sequence config
+    const counter: number = json.data.current;
+    const seq = numberGenerator.getSequence(type);
+    const parts: string[] = [seq.prefix];
+    const now = new Date();
+    if (seq.includeYear) parts.push(now.getFullYear().toString());
+    if (seq.includeMonth) parts.push((now.getMonth() + 1).toString().padStart(2, '0'));
+    parts.push(counter.toString().padStart(seq.padding, '0'));
+    return parts.join(seq.separator);
+  } catch {
+    // Fallback to local preview
+    return numberGenerator.previewNextNumber(type);
+  }
+}

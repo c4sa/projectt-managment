@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Search, UserPlus, ChevronDown } from 'lucide-react';
-import { numberGenerator } from '../utils/numberGenerator';
+import { previewNextNumber } from '../utils/numberGenerator';
 
 interface CustomerSelectorProps {
   value: string;
@@ -28,6 +28,7 @@ export function CustomerSelector({ value, onChange, onCustomersUpdate }: Custome
     vatNumber: '',
     contactPerson: '',
   });
+  const [previewCode, setPreviewCode] = useState('');
 
   // Load customers on mount
   useEffect(() => {
@@ -42,6 +43,13 @@ export function CustomerSelector({ value, onChange, onCustomersUpdate }: Custome
     };
     loadCustomers();
   }, []);
+
+  // Load preview code when add dialog opens
+  useEffect(() => {
+    if (showAddDialog) {
+      previewNextNumber('customer').then(setPreviewCode);
+    }
+  }, [showAddDialog]);
 
   // Get selected customer
   const selectedCustomer = customers.find(c => c.id === value);
@@ -208,7 +216,7 @@ export function CustomerSelector({ value, onChange, onCustomersUpdate }: Custome
             <div className="space-y-2">
               <Label>Customer Code</Label>
               <Input
-                value={numberGenerator.previewNumber('customer')}
+                value={previewCode}
                 readOnly
                 className="bg-blue-50 border-blue-200 text-blue-900 font-mono"
               />

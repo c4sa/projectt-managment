@@ -46,7 +46,7 @@ interface NavItem {
 export function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -54,10 +54,10 @@ export function MainLayout() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   React.useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
+    if (!isLoading && !isAuthenticated) {
+      navigate('/login', { state: { from: location.pathname } });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isLoading, isAuthenticated, navigate, location.pathname]);
 
   const navItems: NavItem[] = [
     { path: '/', label: t('nav.dashboard'), icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -134,6 +134,17 @@ export function MainLayout() {
       </nav>
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#7A1516] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return null;

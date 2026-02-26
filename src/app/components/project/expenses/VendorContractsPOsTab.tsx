@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dataStore, BudgetCategory, POStatus } from '../../../data/store';
 import { useAuth } from '../../../contexts/AuthContext';
-import { numberGenerator } from '../../../utils/numberGenerator';
+import { previewNextNumber } from '../../../utils/numberGenerator';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -58,8 +58,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   // Generate PO number when dialog opens
   useEffect(() => {
     if (dialogOpen) {
-      const poNumber = numberGenerator.previewNextNumber('purchaseOrder');
-      setGeneratedPONumber(poNumber);
+      previewNextNumber('purchaseOrder').then(setGeneratedPONumber);
     }
   }, [dialogOpen]);
 

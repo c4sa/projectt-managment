@@ -39,18 +39,13 @@ export function ProjectDetailPage() {
     const loadProject = async () => {
       setLoading(true);
       try {
-        const projectData = await dataStore.getProjectAsync(id!);
+        const [projectData, allCustomers] = await Promise.all([
+          dataStore.getProjectAsync(id!),
+          dataStore.getCustomers(),
+        ]);
         setProject(projectData);
-        
-        if (projectData && projectData.customerId) {
-          try {
-            const customerData = await dataStore.getCustomer(projectData.customerId);
-            setCustomer(customerData);
-          } catch (error) {
-            // Customer not found or error loading - gracefully handle
-            console.log('Customer data not available for this project');
-            setCustomer(null);
-          }
+        if (projectData?.customerId) {
+          setCustomer(allCustomers.find((c: any) => c.id === projectData.customerId) || null);
         }
       } catch (error) {
         console.error('Error loading project:', error);

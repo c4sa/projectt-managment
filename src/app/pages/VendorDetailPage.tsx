@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { dataStore, Vendor, PurchaseOrder, Invoice, Payment } from '../data/store';
+import { dataStore, Vendor, PurchaseOrder, VendorInvoice, Payment } from '../data/store';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -8,14 +8,14 @@ import { Badge } from '../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { 
-  ArrowLeft, 
-  Building2, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  CreditCard, 
-  FileText, 
+import {
+  ArrowLeft,
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard,
+  FileText,
   ShoppingCart,
   Receipt,
   Wallet,
@@ -30,35 +30,33 @@ export function VendorDetailPage() {
   const navigate = useNavigate();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<VendorInvoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editedVendor, setEditedVendor] = useState<Partial<Vendor>>({});
 
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
+      setLoading(true);
+      try {
+        const [vendors, allPOs, allInvoices, allPayments] = await Promise.all([
+          dataStore.getVendors(),
+          dataStore.getPurchaseOrders(),
+          dataStore.getVendorInvoices(),
+          dataStore.getPayments(),
+        ]);
 
-      // Load vendor
-      const vendors = await dataStore.getVendors();
-      const foundVendor = vendors.find(v => v.id === id);
-      setVendor(foundVendor || null);
-      setEditedVendor(foundVendor || {});
-
-      // Load related purchase orders
-      const allPurchaseOrders = await dataStore.getPurchaseOrders();
-      const vendorPOs = allPurchaseOrders.filter(po => po.vendorId === id);
-      setPurchaseOrders(vendorPOs);
-
-      // Load related invoices
-      const allInvoices = await dataStore.getVendorInvoices();
-      const vendorInvoices = allInvoices.filter(inv => inv.vendorId === id);
-      setInvoices(vendorInvoices);
-
-      // Load related payments
-      const allPayments = await dataStore.getPayments();
-      const vendorPayments = allPayments.filter(payment => payment.vendorId === id);
-      setPayments(vendorPayments);
+        const foundVendor = vendors.find(v => v.id === id) || null;
+        setVendor(foundVendor);
+        setEditedVendor(foundVendor || {});
+        setPurchaseOrders(allPOs.filter(po => po.vendorId === id));
+        setInvoices(allInvoices.filter(inv => inv.vendorId === id));
+        setPayments(allPayments.filter(p => p.vendorId === id));
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadData();
@@ -68,15 +66,25 @@ export function VendorDetailPage() {
     if (!id || !editedVendor) return;
 
     await dataStore.updateVendor(id, editedVendor);
-    
-    // Reload vendor
+
     const vendors = await dataStore.getVendors();
     const updatedVendor = vendors.find(v => v.id === id);
     setVendor(updatedVendor || null);
-    
+
     setEditDialogOpen(false);
     toast.success('Vendor updated successfully');
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-[#7A1516] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading vendor...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!vendor) {
     return (
@@ -92,24 +100,24 @@ export function VendorDetailPage() {
     );
   }
 
-  const totalPOAmount = purchaseOrders.reduce((sum, po) => sum + (po.totalAmount || 0), 0);
-  const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+  const totalPOAmount = purchaseOrders.reduce((sum, po) => sum + (po.total || 0), 0);
+  const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
   const totalPaidAmount = payments
-    .filter(p => p.status === 'completed')
+    .filter(p => p.status === 'paid')
     .reduce((sum, p) => sum + (p.amount || 0), 0);
   const outstandingAmount = totalInvoiceAmount - totalPaidAmount;
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-      case 'approved':
       case 'paid':
+      case 'approved':
+      case 'received':
         return 'bg-green-100 text-green-700';
       case 'pending':
       case 'pending_approval':
+      case 'draft':
         return 'bg-yellow-100 text-yellow-700';
       case 'rejected':
-      case 'cancelled':
         return 'bg-red-100 text-red-700';
       default:
         return 'bg-gray-100 text-gray-700';
@@ -275,7 +283,7 @@ export function VendorDetailPage() {
               <Wallet className="w-8 h-8 text-green-500" />
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              {payments.filter(p => p.status === 'completed').length} payments
+              {payments.filter(p => p.status === 'paid').length} payments
             </p>
           </CardContent>
         </Card>
@@ -454,13 +462,13 @@ export function VendorDetailPage() {
                             {po.status}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">{po.description}</p>
+                        {po.notes && <p className="text-sm text-gray-500 mt-1">{po.notes}</p>}
                         <p className="text-xs text-gray-400 mt-1">
-                          {new Date(po.date).toLocaleDateString()}
+                          {new Date(po.issueDate).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-lg">SAR {(po.totalAmount || 0).toLocaleString()}</p>
+                        <p className="font-bold text-lg">SAR {(po.total || 0).toLocaleString()}</p>
                         <p className="text-sm text-gray-500">Total Amount</p>
                       </div>
                     </div>
@@ -498,12 +506,12 @@ export function VendorDetailPage() {
                           Due: {new Date(invoice.dueDate).toLocaleDateString()}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
-                          Issued: {new Date(invoice.date).toLocaleDateString()}
+                          Issued: {new Date(invoice.issueDate).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-lg">SAR {(invoice.totalAmount || 0).toLocaleString()}</p>
-                        {invoice.vatAmount && (
+                        <p className="font-bold text-lg">SAR {(invoice.total || 0).toLocaleString()}</p>
+                        {invoice.vatAmount > 0 && (
                           <p className="text-sm text-gray-500">VAT: SAR {(invoice.vatAmount || 0).toLocaleString()}</p>
                         )}
                       </div>
@@ -533,14 +541,14 @@ export function VendorDetailPage() {
                     <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
-                          <p className="font-semibold">Payment #{payment.id.slice(0, 8)}</p>
+                          <p className="font-semibold">{payment.paymentNumber || `Payment #${payment.id.slice(0, 8)}`}</p>
                           <Badge className={getStatusColor(payment.status)}>
                             {payment.status}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">{payment.description}</p>
+                        {payment.notes && <p className="text-sm text-gray-500 mt-1">{payment.notes}</p>}
                         <p className="text-xs text-gray-400 mt-1">
-                          {new Date(payment.date).toLocaleDateString()}
+                          {new Date(payment.paymentDate).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="text-right">
