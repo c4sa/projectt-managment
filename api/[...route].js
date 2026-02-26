@@ -4,7 +4,8 @@
  * the Hobby plan's 12-function limit.
  *
  * Routes:
- *   GET    /api/health
+ *   GET    /api/health             → public
+ *   GET    /api/auth/me            → current user (requires JWT)
  *   GET    /api/<entity>           → list all
  *   POST   /api/<entity>           → create one
  *   GET    /api/<entity>/:id       → get one
@@ -15,6 +16,7 @@
  */
 import { kv } from '../lib/kv.js';
 import { makeHandler } from '../lib/handlers.js';
+import { verifyJwt } from '../lib/verifyJwt.js';
 
 // Map URL segment → KV prefix
 const ENTITY_ROUTES = {
@@ -64,10 +66,37 @@ export default async function handler(req, res) {
   // parts[0] === "api", parts[1] === entity, parts[2] === optional id
   const entity = parts[1];
 
-  // Health check
+  // Health check (public)
   if (entity === 'health') {
     if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed' });
     return res.status(200).json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
+  }
+
+  // GET /api/auth/me — current user from JWT + KV
+  if (entity === 'auth' && parts[2] === 'me' && req.method === 'GET') {
+    const payload = await verifyJwt(req);
+    if (!payload) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    try {
+      const appUser = await kv.get('user:' + payload.sub);
+      const data = {
+        id: payload.sub,
+        email: payload.email ?? '',
+        name: appUser?.name ?? payload.email ?? '',
+        role: appUser?.role ?? 'user',
+      };
+      return res.status(200).json({ success: true, data });
+    } catch (e) {
+      console.error('[auth/me] error:', e);
+      return res.status(500).json({ success: false, error: e.message || 'Internal server error' });
+    }
+  }
+
+  // All other routes require valid JWT
+  const payload = await verifyJwt(req);
+  if (!payload) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
 
   // Budget categories (special case — stored as a single array, not individual records)

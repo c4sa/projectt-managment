@@ -3,6 +3,7 @@
 // which stores everything in Supabase (kv_store_02fd4b7a table).
 
 import { numberGenerator } from '../utils/numberGenerator';
+import { getAccessToken, notifyUnauthorized } from '../lib/authClient';
 
 // API base: set VITE_API_BASE_URL=http://localhost:3000 in .env.local for local dev.
 // On Vercel, leave it unset and the app uses relative /api/... paths.
@@ -10,10 +11,12 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
 
 // Helper function for API calls
 async function apiCall(endpoint: string, method: string = 'GET', body?: any) {
+  const token = await getAccessToken();
   const options: RequestInit = {
     method,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   };
 
@@ -22,6 +25,11 @@ async function apiCall(endpoint: string, method: string = 'GET', body?: any) {
   }
 
   const response = await fetch(`${API_BASE}${endpoint}`, options);
+
+  if (response.status === 401) {
+    notifyUnauthorized();
+    throw new Error('Unauthorized');
+  }
 
   const text = await response.text();
 

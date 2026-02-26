@@ -11,9 +11,10 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
   const { t } = useLanguage();
-  const [email, setEmail] = useState('admin@corecode.sa');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -23,12 +24,14 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
     try {
       await login(email, password);
       navigate('/');
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (err) {
+      console.error('Login failed:', err);
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -66,6 +69,11 @@ export function LoginPage() {
                 required
               />
             </div>
+            {error && (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            )}
             <Button type="submit" className="w-full bg-[#7A1516] hover:bg-[#5A1012]" disabled={loading}>
               {loading ? 'Loading...' : t('auth.login')}
             </Button>
