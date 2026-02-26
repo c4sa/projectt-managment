@@ -117,30 +117,28 @@ export function EmployeesPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name.trim()) {
       toast.error('Name is required');
       return;
     }
 
     if (editingEmployee) {
-      // Update existing
-      dataStore.updateEmployee(editingEmployee.id, formData);
+      await dataStore.updateEmployee(editingEmployee.id, formData);
       toast.success('Employee updated successfully');
     } else {
-      // Create new
-      dataStore.addEmployee(formData);
+      await dataStore.addEmployee(formData);
       toast.success('Employee added successfully');
     }
-    loadEmployees();
+    await loadEmployees();
     setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this employee?')) {
-      dataStore.deleteEmployee(id);
+      await dataStore.deleteEmployee(id);
       toast.success('Employee deleted successfully');
-      loadEmployees();
+      await loadEmployees();
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { dataStore, SystemUser } from '../data/store';
+import { dataStore } from '../data/store';
+import { getAccessToken } from '../lib/authClient';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,7 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
-import { Plus, Search, UserPlus, Mail } from 'lucide-react';
+import { Plus, Search, UserPlus, Mail, Pencil, Trash2, ShieldCheck, ShieldOff } from 'lucide-react';
+import { toast } from 'sonner';
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
 
 export function UsersPage() {
   const { user } = useAuth();
@@ -16,6 +20,18 @@ export function UsersPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editRole, setEditRole] = useState<'admin' | 'user'>('user');
+  const [editStatus, setEditStatus] = useState<'active' | 'inactive'>('active');
+  const [saving, setSaving] = useState(false);
+
+  // Delete confirm state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -33,7 +49,7 @@ export function UsersPage() {
     phone: '',
     department: '',
     status: 'active' as 'active' | 'inactive',
-    employeeId: '', // Link to employee
+    employeeId: '',
   });
 
   const filteredUsers = users.filter(u =>
@@ -41,19 +57,145 @@ export function UsersPage() {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const [inviting, setInviting] = useState(false);
+
   const handleCreateUser = async () => {
-    await dataStore.addUser(newUser);
-    setUsers(await dataStore.getUsers());
-    setDialogOpen(false);
-    setNewUser({
-      name: '',
-      email: '',
-      role: 'user',
-      phone: '',
-      department: '',
-      status: 'active',
-      employeeId: '',
-    });
+    if (!newUser.name.trim() || !newUser.email.trim()) {
+      toast.error('Name and email are required');
+      return;
+    }
+
+    setInviting(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_BASE}/auth/invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+        }),
+      });
+
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.error || 'Failed to invite user');
+        return;
+      }
+
+      toast.success(`Invitation sent to ${newUser.email}`);
+      setUsers(await dataStore.getUsers());
+      setDialogOpen(false);
+      setNewUser({
+        name: '',
+        email: '',
+        role: 'user',
+        phone: '',
+        department: '',
+        status: 'active',
+        employeeId: '',
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to invite user');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const openEditDialog = (u: any) => {
+    setEditingUser(u);
+    setEditRole(u.role);
+    setEditStatus(u.status);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+    setSaving(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_BASE}/auth/manage-user/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ role: editRole, status: editStatus }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.error || 'Failed to update user');
+        return;
+      }
+      toast.success('User updated successfully');
+      setUsers(await dataStore.getUsers());
+      setEditDialogOpen(false);
+      setEditingUser(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update user');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleStatus = async (u: any) => {
+    const newStatus = u.status === 'active' ? 'inactive' : 'active';
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_BASE}/auth/manage-user/${u.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.error || 'Failed to update user status');
+        return;
+      }
+      toast.success(newStatus === 'inactive' ? `${u.name} deactivated` : `${u.name} activated`);
+      setUsers(await dataStore.getUsers());
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update user status');
+    }
+  };
+
+  const openDeleteDialog = (u: any) => {
+    setDeletingUser(u);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setDeleting(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${API_BASE}/auth/manage-user/${deletingUser.id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(json.error || 'Failed to delete user');
+        return;
+      }
+      toast.success(`${deletingUser.name} deleted`);
+      setUsers(await dataStore.getUsers());
+      setDeleteDialogOpen(false);
+      setDeletingUser(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete user');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (user?.role !== 'admin') {
@@ -143,8 +285,7 @@ export function UsersPage() {
                 <Label>Link to Employee (Optional)</Label>
                 <Select value={newUser.employeeId} onValueChange={(value) => {
                   setNewUser({ ...newUser, employeeId: value });
-                  // Auto-fill user data from selected employee
-                  if (value) {
+                  if (value && value !== 'none') {
                     const selectedEmployee = employees.find(emp => emp.id === value);
                     if (selectedEmployee) {
                       setNewUser(prev => ({
@@ -177,9 +318,9 @@ export function UsersPage() {
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateUser} className="bg-[#7A1516] hover:bg-[#5A1012]">
+                <Button onClick={handleCreateUser} disabled={inviting} className="bg-[#7A1516] hover:bg-[#5A1012]">
                   <Mail className="w-4 h-4 mr-2" />
-                  Send Invitation
+                  {inviting ? 'Sending...' : 'Send Invitation'}
                 </Button>
               </div>
             </div>
@@ -200,6 +341,7 @@ export function UsersPage() {
       <div className="grid grid-cols-1 gap-4">
         {filteredUsers.map((u) => {
           const linkedEmployee = u.employeeId ? employees.find(emp => emp.id === u.employeeId) : null;
+          const isSelf = u.id === user?.id;
           return (
             <Card key={u.id}>
               <CardContent className="p-6">
@@ -209,17 +351,20 @@ export function UsersPage() {
                       {u.name.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">{u.name}</h3>
+                      <h3 className="font-semibold text-lg">
+                        {u.name}
+                        {isSelf && <span className="ml-2 text-xs text-gray-400">(you)</span>}
+                      </h3>
                       <p className="text-sm text-gray-500">{u.email}</p>
                       {linkedEmployee && (
                         <p className="text-xs text-blue-600 mt-1">
-                          🔗 Linked to {linkedEmployee.employeeId} - {linkedEmployee.position || 'Employee'}
+                          Linked to {linkedEmployee.employeeId} - {linkedEmployee.position || 'Employee'}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="text-right">
                       <Badge className={u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}>
                         {u.role}
@@ -229,6 +374,37 @@ export function UsersPage() {
                     <Badge variant={u.status === 'active' ? 'default' : 'secondary'}>
                       {u.status}
                     </Badge>
+
+                    {!isSelf && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Edit role / status"
+                          onClick={() => openEditDialog(u)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title={u.status === 'active' ? 'Deactivate user' : 'Activate user'}
+                          onClick={() => handleToggleStatus(u)}
+                        >
+                          {u.status === 'active'
+                            ? <ShieldOff className="w-4 h-4 text-orange-500" />
+                            : <ShieldCheck className="w-4 h-4 text-green-600" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Delete user"
+                          onClick={() => openDeleteDialog(u)}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -243,6 +419,76 @@ export function UsersPage() {
           <p className="text-gray-500">No users found</p>
         </div>
       )}
+
+      {/* Edit User Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit User — {editingUser?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={editRole} onValueChange={(v) => setEditRole(v as 'admin' | 'user')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as 'active' | 'inactive')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={saving} className="bg-[#7A1516] hover:bg-[#5A1012]">
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-700">
+              Are you sure you want to permanently delete <strong>{deletingUser?.name}</strong>?
+              This will remove their login access and all associated data.
+            </p>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteUser}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleting ? 'Deleting...' : 'Delete User'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

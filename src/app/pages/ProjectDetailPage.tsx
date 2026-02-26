@@ -85,16 +85,16 @@ export function ProjectDetailPage() {
       // Calculate total reserved (approved POs + approved invoices + approved VOs)
       let reserved = 0;
       
-      // Approved, Partially Paid, or Paid POs (all represent committed funds)
+      // Committed POs: approved, issued, received, partially_paid, or paid
       purchaseOrders.forEach((po: any) => {
-        if (po.status === 'approved' || po.status === 'partially_paid' || po.status === 'paid') {
+        if (['approved', 'issued', 'received', 'partially_paid', 'paid'].includes(po.status)) {
           reserved += po.subtotal || 0;
         }
       });
-      
-      // Approved, Partially Paid, or Paid invoices (all represent committed funds)
+
+      // Committed invoices: pending, approved, sent, or paid (no 'partially_paid' in invoice status)
       projectInvoices.forEach((inv: any) => {
-        if (inv.status === 'approved' || inv.status === 'partially_paid' || inv.status === 'paid') {
+        if (['pending', 'approved', 'sent', 'paid'].includes(inv.status)) {
           reserved += inv.subtotal || 0;
         }
       });

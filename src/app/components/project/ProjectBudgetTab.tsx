@@ -87,115 +87,92 @@ export function ProjectBudgetTab({ projectId }: Props) {
   }, [projectId]);
 
 
-  // Calculate reserved amount (committed) based on POs, VOs, and Invoices for specific budget item
+  // Committed PO statuses (approved or further along in the workflow)
+  const COMMITTED_PO_STATUSES = ['approved', 'issued', 'received', 'partially_paid', 'paid'];
+  // Committed invoice statuses (pending review or approved/paid — no 'partially_paid' in invoice enum)
+  const COMMITTED_INV_STATUSES = ['pending', 'approved', 'sent', 'paid'];
+
+  // Calculate reserved amount (committed) based on POs, VOs, and Invoices for a specific budget item.
+  // Matching is by budgetCategory (DB field) since budgetItem is not a DB column.
   const calculateReservedForItem = (budgetItem: BudgetItem) => {
     let total = 0;
-    const budgetItemKey = `${budgetItem.category}-${budgetItem.name}`;
-    
-    // Debug logging
-    console.log(`Calculating reserved for: ${budgetItemKey}`);
-    console.log(`Total POs: ${purchaseOrders.length}`);
-    console.log(`Total Invoices: ${vendorInvoices.length}`);
-    console.log(`Total VOs: ${variationOrders.length}`);
-    
-    // Count APPROVED, PARTIALLY_PAID, or PAID Purchase Orders (all represent approved/committed funds)
+    const category = budgetItem.category;
+
+    // Committed Purchase Orders — match by po.budgetCategory or per-line item budgetCategory
     purchaseOrders.forEach((po: any) => {
-      if (po.status !== 'approved' && po.status !== 'partially_paid' && po.status !== 'paid') return; // Skip non-approved POs
-      
-      console.log(`Checking PO ${po.poNumber}, status: ${po.status}, budgetItem: ${po.budgetItem}`);
-      
-      // Check if PO has line items with different categories
-      const hasLineItemCategories = po.items && po.items.some((item: any) => item.budgetItem);
-      
+      if (!COMMITTED_PO_STATUSES.includes(po.status)) return;
+
+      const hasLineItemCategories = po.items && po.items.some((item: any) => item.budgetCategory);
       if (hasLineItemCategories) {
-        // Sum line items that match this specific budget item
         po.items.forEach((item: any) => {
-          console.log(`  Line item budgetItem: ${item.budgetItem}, total: ${item.total}`);
-          if (item.budgetItem === budgetItemKey) {
-            total += item.total;
-            console.log(`  ✓ Matched! Added ${item.total}, new total: ${total}`);
-          }
-        });
-      } else if (po.budgetItem === budgetItemKey) {
-        // Use PO-level budget item and subtotal (before VAT)
-        total += po.subtotal || 0;
-        console.log(`  ✓ PO-level match! Added ${po.subtotal}, new total: ${total}`);
-      }
-    });
-    
-    // Count APPROVED, PARTIALLY_PAID, or PAID invoices (all represent approved/committed funds)
-    const itemInvoices = vendorInvoices.filter((inv: any) => 
-      inv.budgetItem === budgetItemKey && 
-      (inv.status === 'approved' || inv.status === 'partially_paid' || inv.status === 'paid')
-    );
-    console.log(`Found ${itemInvoices.length} matching invoices`);
-    itemInvoices.forEach((inv: any) => {
-      // For invoices with line items, sum only matching items
-      if (inv.items && inv.items.length > 0) {
-        inv.items.forEach((item: any) => {
-          if (item.budgetItem === budgetItemKey) {
+          if (item.budgetCategory === category) {
             total += item.total || 0;
           }
         });
-      } else {
-        // For invoices without line items, use subtotal
+      } else if (po.budgetCategory === category) {
+        total += po.subtotal || 0;
+      }
+    });
+
+    // Committed vendor invoices — match by inv.budgetCategory or per-line item budgetCategory
+    vendorInvoices.filter((inv: any) => COMMITTED_INV_STATUSES.includes(inv.status)).forEach((inv: any) => {
+      const hasLineItemCategories = inv.items && inv.items.some((item: any) => item.budgetCategory);
+      if (hasLineItemCategories) {
+        inv.items.forEach((item: any) => {
+          if (item.budgetCategory === category) {
+            total += item.total || 0;
+          }
+        });
+      } else if (inv.budgetCategory === category) {
         total += inv.subtotal || 0;
       }
     });
-    
-    // Sum approved VOs with this specific budget item
-    const itemVOs = variationOrders.filter((vo: any) => vo.budgetItem === budgetItemKey && vo.status === 'approved');
-    console.log(`Found ${itemVOs.length} matching VOs`);
-    itemVOs.forEach((vo: any) => {
-      total += vo.totalAmount;
+
+    // Approved variation orders
+    variationOrders.filter((vo: any) => vo.budgetCategory === category && vo.status === 'approved').forEach((vo: any) => {
+      total += vo.totalAmount || 0;
     });
-    
-    console.log(`Final reserved total for ${budgetItemKey}: ${total}`);
+
     return total;
   };
 
-  // Calculate actual spent amount based on PAID payments for specific budget item
+  // Calculate actual spent amount based on PAID payments for a specific budget item.
   const calculateActualSpentForItem = (budgetItem: BudgetItem) => {
     let total = 0;
-    const budgetItemKey = `${budgetItem.category}-${budgetItem.name}`;
-    
-    // Only count payments with status 'paid'
+    const category = budgetItem.category;
+
     const paidPayments = payments.filter((p: any) => p.type === 'payment' && p.status === 'paid');
-    
-    // Sum payments for POs with this specific budget item
+
+    // Payments linked to POs in this budget category
     purchaseOrders.forEach((po: any) => {
-      // Check if PO has line items with different budget items
-      const hasLineItemBudgetItems = po.items && po.items.some((item: any) => item.budgetItem);
-      
-      if (hasLineItemBudgetItems) {
-        // Get payments for this PO and sum based on line item budget items
+      const hasLineItemCategories = po.items && po.items.some((item: any) => item.budgetCategory);
+      if (hasLineItemCategories) {
         const poPayments = paidPayments.filter((p: any) => p.poId === po.id);
         poPayments.forEach((payment: any) => {
           if (payment.lineItemPayments) {
             payment.lineItemPayments.forEach((linePayment: any, index: number) => {
               const poItem = po.items[index];
-              if (poItem && (poItem.budgetItem === budgetItemKey || (!poItem.budgetItem && po.budgetItem === budgetItemKey))) {
+              if (poItem && (poItem.budgetCategory === category || (!poItem.budgetCategory && po.budgetCategory === category))) {
                 total += linePayment.paymentAmount || 0;
               }
             });
           }
         });
-      } else if (po.budgetItem === budgetItemKey) {
-        // Use PO-level budget item
+      } else if (po.budgetCategory === category) {
         const poPayments = paidPayments.filter((p: any) => p.poId === po.id);
-        const poPaymentTotal = poPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
-        total += poPaymentTotal;
+        total += poPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount || 0), 0);
       }
     });
-    
-    // Sum payments for invoices with this specific budget item
-    const itemInvoices = vendorInvoices.filter((inv: any) => inv.budgetItem === budgetItemKey);
-    itemInvoices.forEach((inv: any) => {
+
+    // Payments linked to invoices in this budget category
+    vendorInvoices.filter((inv: any) => {
+      const hasLineItemCategories = inv.items && inv.items.some((item: any) => item.budgetCategory);
+      return hasLineItemCategories ? inv.items.some((item: any) => item.budgetCategory === category) : inv.budgetCategory === category;
+    }).forEach((inv: any) => {
       const invPayments = paidPayments.filter((p: any) => p.invoiceId === inv.id);
-      const invPaymentTotal = invPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
-      total += invPaymentTotal;
+      total += invPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount || 0), 0);
     });
-    
+
     return total;
   };
 

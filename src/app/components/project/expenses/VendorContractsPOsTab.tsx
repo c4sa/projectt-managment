@@ -675,7 +675,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                     </div>
                     <div className="col-span-4">
                       <Label className="text-xs">Total</Label>
-                      <Input value={item.total.toFixed(2)} disabled className="bg-gray-100" />
+                      <Input value={(item.total ?? 0).toFixed(2)} disabled className="bg-gray-100" />
                     </div>
                     {newPO.items.length > 1 && (
                       <div className="col-span-1 flex items-end">
@@ -907,7 +907,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                       </div>
                     </td>
                     <td className="text-right py-3 px-4 font-semibold">
-                      {po.total.toLocaleString()} SAR
+                      {(po.total ?? 0).toLocaleString()} SAR
                     </td>
                     <td className="py-3 px-4">
                       <span className={`text-xs px-2 py-1 rounded ${getStatusColor(po.status)}`}>
@@ -1117,8 +1117,8 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                           )}
                           <td className="py-3 px-4 text-sm">{item.unit}</td>
                           <td className="text-right py-3 px-4">{item.quantity}</td>
-                          <td className="text-right py-3 px-4">{item.unitPrice.toFixed(2)} SAR</td>
-                          <td className="text-right py-3 px-4 font-semibold">{item.total.toFixed(2)} SAR</td>
+                          <td className="text-right py-3 px-4">{(item.unitPrice ?? 0).toFixed(2)} SAR</td>
+                          <td className="text-right py-3 px-4 font-semibold">{(item.total ?? 0).toFixed(2)} SAR</td>
                         </tr>
                       ))}
                     </tbody>

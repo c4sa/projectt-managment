@@ -42,6 +42,7 @@ const roleColors: Record<ManpowerRole, string> = {
 
 export function ProjectManpowerTab({ projectId }: Props) {
   const [members, setMembers] = useState<ManpowerMember[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<ManpowerMember | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,7 +61,13 @@ export function ProjectManpowerTab({ projectId }: Props) {
 
   useEffect(() => {
     loadMembers();
+    loadEmployees();
   }, [projectId]);
+
+  const loadEmployees = async () => {
+    const data = await dataStore.getEmployees();
+    setEmployees(data);
+  };
 
   const loadMembers = async () => {
     const data = await dataStore.getManpowerMembers(projectId);
@@ -106,36 +113,34 @@ export function ProjectManpowerTab({ projectId }: Props) {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name.trim()) {
       toast.error('Name is required');
       return;
     }
 
     if (editingMember) {
-      // Update existing
-      dataStore.updateManpowerMember(editingMember.id, {
+      await dataStore.updateManpowerMember(editingMember.id, {
         ...formData,
         updatedAt: new Date().toISOString(),
       });
       toast.success('Team member updated successfully');
     } else {
-      // Create new
-      dataStore.addManpowerMember({
+      await dataStore.addManpowerMember({
         projectId,
         ...formData,
       });
       toast.success('Team member added successfully');
     }
-    loadMembers();
+    await loadMembers();
     setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to remove this team member?')) {
-      dataStore.deleteManpowerMember(id);
+      await dataStore.deleteManpowerMember(id);
       toast.success('Team member removed successfully');
-      loadMembers();
+      await loadMembers();
     }
   };
 
@@ -385,6 +390,45 @@ export function ProjectManpowerTab({ projectId }: Props) {
                 />
               </div>
 
+              <div className="space-y-2 md:col-span-2">
+                <Label>Link to Employee (optional)</Label>
+                <Select
+                  value={formData.employeeId || '__none__'}
+                  onValueChange={(value) => {
+                    if (value === '__none__') {
+                      setFormData({ ...formData, employeeId: '' });
+                      return;
+                    }
+                    const emp = employees.find(e => e.id === value);
+                    if (emp) {
+                      setFormData({
+                        ...formData,
+                        employeeId: emp.id,
+                        name: emp.name,
+                        phone: emp.phone || formData.phone,
+                        email: emp.email || formData.email,
+                        nationality: emp.nationality || formData.nationality,
+                        idNumber: emp.idNumber || formData.idNumber,
+                        joiningDate: emp.joiningDate || formData.joiningDate,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an employee to auto-fill..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None (manual entry) —</SelectItem>
+                    {employees.filter(e => e.status === 'active').map(emp => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.name}{emp.employeeId ? ` (${emp.employeeId})` : ''}{emp.assignedRole ? ` — ${emp.assignedRole}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">Selecting an employee auto-fills the fields below. You can still edit them manually.</p>
+              </div>
+
               <div className="space-y-2">
                 <Label>
                   Role <span className="text-red-500">*</span>
@@ -401,15 +445,6 @@ export function ProjectManpowerTab({ projectId }: Props) {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Employee ID</Label>
-                <Input
-                  value={formData.employeeId}
-                  onChange={(e) => handleInputChange('employeeId', e.target.value)}
-                  placeholder="e.g., EMP-001"
-                />
               </div>
 
               <div className="space-y-2">

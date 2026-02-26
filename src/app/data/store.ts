@@ -961,18 +961,11 @@ class DataStore {
     }
   }
 
+  // NOTE: Do not call this directly for new users.
+  // User creation must go through POST /api/auth/invite so Supabase Auth
+  // creates the auth.users record and returns the correct UUID.
   async addUser(user: Omit<SystemUser, 'id' | 'createdAt'>): Promise<SystemUser> {
-    const newUser = { ...user, id: Date.now().toString(), createdAt: new Date().toISOString() };
-    const saved = await apiCall('/users', 'POST', newUser);
-    // Link user to employee if employeeId provided
-    if (newUser.employeeId) {
-      try {
-        await apiCall(`/employees/${newUser.employeeId}`, 'PUT', { userId: newUser.id });
-      } catch {
-        // Non-fatal: employee linking is best-effort
-      }
-    }
-    return saved;
+    return await apiCall('/users', 'POST', { ...user, createdAt: new Date().toISOString() });
   }
 
   async updateUser(id: string, updates: Partial<SystemUser>): Promise<SystemUser> {
