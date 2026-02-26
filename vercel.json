@@ -4,6 +4,7 @@
   "installCommand": "npm install",
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/[...route].js" },
+    { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
