@@ -32,10 +32,13 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; base64: string }[]>([]);
   const [differentCategoryPerItem, setDifferentCategoryPerItem] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
+  const todayStr = () => new Date().toISOString().split('T')[0];
+
   const [newPO, setNewPO] = useState({
     vendorId: '',
     budgetCategory: '' as BudgetCategory,
     budgetItem: '',
+    issueDate: todayStr(),
     description: '',
     items: [{ description: '', unit: 'pcs', quantity: 1, unitPrice: 0, total: 0, budgetCategory: '' as BudgetCategory, budgetItem: '' }],
     vatStatus: 'exclusive' as 'not_applicable' | 'inclusive' | 'exclusive',
@@ -175,19 +178,19 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
     const po = {
       projectId,
       vendorId: newPO.vendorId,
+      issueDate: newPO.issueDate || todayStr(),
       budgetCategory: newPO.budgetCategory,
       description: newPO.description,
       items: newPO.items,
       vatStatus: newPO.vatStatus,
       subtotal: getDisplaySubtotal(),
-      vat: calculateVAT(),
+      vatAmount: calculateVAT(),
       total: calculateTotal(),
       paymentTerms: newPO.paymentTerms,
       termsAndConditions: newPO.termsAndConditions,
       notes: newPO.notes,
-      documents: uploadedFiles.map(f => f.base64),
       status: 'draft' as const,
-      createdBy: user?.id, // Track who created the PO
+      createdBy: user?.id,
     };
 
     await dataStore.addPurchaseOrder(po);
@@ -197,6 +200,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
       vendorId: '',
       budgetCategory: '' as BudgetCategory,
       budgetItem: '',
+      issueDate: todayStr(),
       description: '',
       items: [{ description: '', unit: 'pcs', quantity: 1, unitPrice: 0, total: 0, budgetCategory: '' as BudgetCategory, budgetItem: '' }],
       vatStatus: 'exclusive',
@@ -211,19 +215,19 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
     const po = {
       projectId,
       vendorId: newPO.vendorId,
+      issueDate: newPO.issueDate || todayStr(),
       budgetCategory: newPO.budgetCategory,
       description: newPO.description,
       items: newPO.items,
       vatStatus: newPO.vatStatus,
       subtotal: getDisplaySubtotal(),
-      vat: calculateVAT(),
+      vatAmount: calculateVAT(),
       total: calculateTotal(),
       paymentTerms: newPO.paymentTerms,
       termsAndConditions: newPO.termsAndConditions,
       notes: newPO.notes,
-      documents: uploadedFiles.map(f => f.base64),
       status: 'draft' as const,
-      modifiedBy: user?.id, // Track who modified the PO
+      modifiedBy: user?.id,
       modifiedAt: new Date().toISOString(),
     };
 
@@ -234,6 +238,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
       vendorId: '',
       budgetCategory: '' as BudgetCategory,
       budgetItem: '',
+      issueDate: todayStr(),
       description: '',
       items: [{ description: '', unit: 'pcs', quantity: 1, unitPrice: 0, total: 0, budgetCategory: '' as BudgetCategory, budgetItem: '' }],
       vatStatus: 'exclusive',
@@ -452,7 +457,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
           </tbody>
           <tfoot>
             <tr><td colspan="4" class="text-right">Subtotal:</td><td class="text-right"><strong>${(po.subtotal || 0).toLocaleString()} SAR</strong></td></tr>
-            ${po.vat ? `<tr><td colspan="4" class="text-right">VAT (15%):</td><td class="text-right"><strong>${po.vat.toLocaleString()} SAR</strong></td></tr>` : ''}
+            ${po.vatAmount ? `<tr><td colspan="4" class="text-right">VAT (15%):</td><td class="text-right"><strong>${po.vatAmount.toLocaleString()} SAR</strong></td></tr>` : ''}
             <tr class="total-row"><td colspan="4" class="text-right">TOTAL AMOUNT:</td><td class="text-right"><strong>${(po.total || 0).toLocaleString()} SAR</strong></td></tr>
           </tfoot>
         </table>
@@ -528,12 +533,21 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Vendor *</Label>
                   <VendorSelector
                     value={newPO.vendorId}
                     onChange={(value) => setNewPO({ ...newPO, vendorId: value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Issue Date *</Label>
+                  <Input
+                    type="date"
+                    value={newPO.issueDate}
+                    onChange={(e) => setNewPO({ ...newPO, issueDate: e.target.value })}
                   />
                 </div>
 
@@ -788,18 +802,18 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                   Cancel
                 </Button>
                 {editMode ? (
-                  <Button 
-                    onClick={handleEditPO} 
+                  <Button
+                    onClick={handleEditPO}
                     className="bg-[#7A1516] hover:bg-[#5A1012]"
-                    disabled={!newPO.vendorId || !newPO.description || newPO.items.some(i => !i.description)}
+                    disabled={!newPO.vendorId}
                   >
                     Update PO
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleCreatePO} 
+                  <Button
+                    onClick={handleCreatePO}
                     className="bg-[#7A1516] hover:bg-[#5A1012]"
-                    disabled={!newPO.vendorId || !newPO.description || newPO.items.some(i => !i.description)}
+                    disabled={!newPO.vendorId}
                   >
                     Create PO
                   </Button>
@@ -933,6 +947,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                                 vendorId: po.vendorId,
                                 budgetCategory: po.budgetCategory,
                                 budgetItem: po.budgetItem || '',
+                                issueDate: po.issueDate || todayStr(),
                                 description: po.description,
                                 items: po.items,
                                 vatStatus: po.vatStatus,
@@ -1117,15 +1132,15 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                   <div className="w-80 space-y-3">
                     <div className="flex justify-between text-base">
                       <span className="text-gray-600">Subtotal:</span>
-                      <span className="font-semibold">{selectedPO.subtotal.toFixed(2)} SAR</span>
+                      <span className="font-semibold">{(selectedPO.subtotal ?? 0).toFixed(2)} SAR</span>
                     </div>
                     <div className="flex justify-between text-base">
                       <span className="text-gray-600">VAT (15%):</span>
-                      <span className="font-semibold">{selectedPO.vat.toFixed(2)} SAR</span>
+                      <span className="font-semibold">{(selectedPO.vatAmount ?? 0).toFixed(2)} SAR</span>
                     </div>
                     <div className="border-t pt-3 flex justify-between text-xl">
                       <span className="font-bold">Total Amount:</span>
-                      <span className="font-bold text-[#7A1516]">{selectedPO.total.toFixed(2)} SAR</span>
+                      <span className="font-bold text-[#7A1516]">{(selectedPO.total ?? 0).toFixed(2)} SAR</span>
                     </div>
                   </div>
                 </div>
@@ -1309,6 +1324,8 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                       setNewPO({
                         vendorId: selectedPO.vendorId,
                         budgetCategory: selectedPO.budgetCategory,
+                        budgetItem: selectedPO.budgetItem || '',
+                        issueDate: selectedPO.issueDate || todayStr(),
                         description: selectedPO.description,
                         items: selectedPO.items,
                         vatStatus: selectedPO.vatStatus,

@@ -32,7 +32,6 @@ export function ProjectBudgetTab({ projectId }: Props) {
   const [payments, setPayments] = useState<any[]>([]);
   const [variationOrders, setVariationOrders] = useState<any[]>([]);
   const [vendorInvoices, setVendorInvoices] = useState<any[]>([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [newItem, setNewItem] = useState({
     category: 'Fitout' as BudgetCategory,
     name: '',
@@ -87,28 +86,6 @@ export function ProjectBudgetTab({ projectId }: Props) {
     loadData();
   }, [projectId]);
 
-  // Add visibility change listener to refresh data when tab becomes visible
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        setRefreshTrigger(prev => prev + 1);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // Refresh data periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRefreshTrigger(prev => prev + 1);
-    }, 3000); // Refresh every 3 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Calculate reserved amount (committed) based on POs, VOs, and Invoices for specific budget item
   const calculateReservedForItem = (budgetItem: BudgetItem) => {
@@ -222,8 +199,13 @@ export function ProjectBudgetTab({ projectId }: Props) {
     return total;
   };
 
-  const handleCreateItem = () => {
-    dataStore.addBudgetItem({
+  const reloadBudgetItems = async () => {
+    const data = await dataStore.getBudgetItems(projectId);
+    setBudgetItems(data);
+  };
+
+  const handleCreateItem = async () => {
+    await dataStore.addBudgetItem({
       projectId,
       category: newItem.category,
       name: newItem.name,
@@ -231,10 +213,10 @@ export function ProjectBudgetTab({ projectId }: Props) {
       reserved: 0,
       actual: 0,
     });
-    setBudgetItems(dataStore.getBudgetItems(projectId));
+    await reloadBudgetItems();
     setDialogOpen(false);
     setNewItem({
-      category: 'Fitout',
+      category: categories[0] || 'Fitout',
       name: '',
       budgeted: 0,
       actual: 0,
@@ -246,23 +228,23 @@ export function ProjectBudgetTab({ projectId }: Props) {
     setEditDialogOpen(true);
   };
 
-  const handleUpdateItem = () => {
+  const handleUpdateItem = async () => {
     if (editingItem) {
-      dataStore.updateBudgetItem(editingItem.id, {
+      await dataStore.updateBudgetItem(editingItem.id, {
         category: editingItem.category,
         name: editingItem.name,
         budgeted: editingItem.budgeted,
       });
-      setBudgetItems(dataStore.getBudgetItems(projectId));
+      await reloadBudgetItems();
       setEditDialogOpen(false);
     }
   };
 
-  const handleDeleteItem = (item: BudgetItem) => {
+  const handleDeleteItem = async (item: BudgetItem) => {
     if (confirm(`Are you sure you want to delete "${item.name}"?`)) {
       try {
-        dataStore.deleteBudgetItem(item.id);
-        setBudgetItems(dataStore.getBudgetItems(projectId));
+        await dataStore.deleteBudgetItem(item.id);
+        await reloadBudgetItems();
       } catch (error: any) {
         alert(error.message || 'Failed to delete budget item');
       }
