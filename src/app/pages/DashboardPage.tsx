@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { TrendingUp, TrendingDown, DollarSign, AlertCircle, FolderKanban, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import { useNavigate } from 'react-router';
+import { Skeleton } from '../components/ui/skeleton';
 
 export function DashboardPage() {
   const { t } = useLanguage();
@@ -16,6 +17,7 @@ export function DashboardPage() {
   const [vendorInvoices, setVendorInvoices] = useState<VendorInvoice[]>([]);
   const [customerInvoices, setCustomerInvoices] = useState<CustomerInvoice[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
@@ -34,14 +36,16 @@ export function DashboardPage() {
         setPurchaseOrders(posData);
         setVendorInvoices(vendorInvoicesData);
         setCustomerInvoices(customerInvoicesData);
-        
-        // Load all payments for revenue calculation
-        const allPayments = projectsData.flatMap((project: Project) => 
-          dataStore.getPayments(project.id)
+        setIsLoading(false);
+
+        // Load all payments for revenue calculation (after showing the page)
+        const paymentsArrays = await Promise.all(
+          projectsData.map((project: Project) => dataStore.getPayments(project.id))
         );
-        setPayments(allPayments);
+        setPayments(paymentsArrays.flat());
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        setIsLoading(false);
       }
     };
     loadData();
@@ -161,6 +165,91 @@ export function DashboardPage() {
       color: 'bg-orange-500',
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
+          <p className="text-gray-500 mt-1">Welcome back! Here's what's happening with your projects.</p>
+        </div>
+
+        {/* KPI skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-7 w-32" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <Skeleton className="w-12 h-12 rounded-lg" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Quick stats skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="w-12 h-12 rounded-lg" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-7 w-12" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Charts skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-5 w-48" /></CardHeader>
+              <CardContent><Skeleton className="h-[300px] w-full rounded-lg" /></CardContent>
+            </Card>
+          ))}
+          <Card className="lg:col-span-2">
+            <CardHeader><Skeleton className="h-5 w-48" /></CardHeader>
+            <CardContent><Skeleton className="h-[300px] w-full rounded-lg" /></CardContent>
+          </Card>
+        </div>
+
+        {/* Recent projects skeleton */}
+        <Card>
+          <CardHeader><CardTitle>Recent Projects</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-16 rounded" />
+                    </div>
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-2 w-48 rounded-full" />
+                  </div>
+                  <div className="text-right space-y-1">
+                    <Skeleton className="h-4 w-24 ml-auto" />
+                    <Skeleton className="h-3 w-16 ml-auto" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -319,8 +408,8 @@ export function DashboardPage() {
               const customer = customers.find(c => c.id === project.customerId);
               const progress = project.budget && project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
               return (
-                <div 
-                  key={project.id} 
+                <div
+                  key={project.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-all hover:shadow-md"
                   onClick={() => navigate(`/projects/${project.id}`)}
                 >
