@@ -43,6 +43,14 @@ export function onAuthStateChange(
   return subscription;
 }
 
+export async function resetPasswordForEmail(email: string, redirectTo: string) {
+  return supabaseAuth.auth.resetPasswordForEmail(email, { redirectTo });
+}
+
+export async function updatePassword(newPassword: string) {
+  return supabaseAuth.auth.updateUser({ password: newPassword });
+}
+
 // Called by store when API returns 401; AuthContext registers a handler to clear user and redirect
 let _onUnauthorized: () => void = () => {};
 export function setOnUnauthorized(cb: () => void) {

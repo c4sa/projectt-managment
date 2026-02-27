@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router';
+import { useNavigate, useLocation, Link } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/button';
@@ -83,7 +83,12 @@ export function LoginPage() {
                   {error}
                 </p>
               )}
-              <Button type="submit" className="w-full bg-[#7A1516] hover:bg-[#5A1012] mt-2" disabled={loading}>
+              <div className="flex justify-end">
+                <Link to="/forgot-password" className="text-xs text-[#7A1516] hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <Button type="submit" className="w-full bg-[#7A1516] hover:bg-[#5A1012]" disabled={loading}>
                 {loading ? 'Signing in...' : t('auth.login')}
               </Button>
             </form>
