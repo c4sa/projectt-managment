@@ -86,9 +86,9 @@ export function MainLayout() {
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-[#444545] text-white">
+    <div className="flex flex-col h-full bg-[#979797] text-white">
       {/* Logo */}
-      <div className="p-4 border-b border-[#555656]">
+      <div className="p-4 border-b border-[#888888]">
         <div className="flex items-center justify-between">
           {!sidebarCollapsed && (
             <motion.div
@@ -119,7 +119,7 @@ export function MainLayout() {
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 isActive
                   ? 'bg-[#7A1516] text-white'
-                  : 'text-gray-300 hover:bg-[#555656] hover:text-white'
+                  : 'text-gray-100 hover:bg-[#888888] hover:text-white'
               } ${sidebarCollapsed ? 'justify-center' : ''}`}
             >
               {item.icon}
