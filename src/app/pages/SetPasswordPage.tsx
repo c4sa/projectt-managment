@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { supabaseAuth, updatePassword } from '../lib/authClient';
+import { supabaseAuth, updatePassword, getSession } from '../lib/authClient';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -19,29 +19,38 @@ export function SetPasswordPage() {
   const [linkType, setLinkType] = useState<'invite' | 'recovery' | 'unknown'>('unknown');
 
   useEffect(() => {
-    // Supabase puts the tokens in the URL hash when redirecting from magic/reset links.
-    // The supabase-js client automatically processes the hash and fires an auth state change.
-    // We listen for SIGNED_IN (invite) or PASSWORD_RECOVERY (reset) events.
-    const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange((event, session) => {
+    const hash = window.location.hash;
+    const isInvite = hash.includes('type=invite');
+    const isRecovery = hash.includes('type=recovery');
+
+    // Step 1: Check if supabase-js already processed the hash and we have a session.
+    // This happens when AuthContext initialised first and the SIGNED_IN event already fired.
+    getSession().then(({ session }) => {
+      if (!session) return; // no session yet — wait for the auth state change event below
+      if (isInvite) {
+        setLinkType('invite');
+        setPageState('ready');
+      } else if (isRecovery) {
+        setLinkType('recovery');
+        setPageState('ready');
+      }
+      // If neither flag is in the hash the user navigated here directly — do nothing,
+      // let the timeout handle it.
+    });
+
+    // Step 2: Also listen for the auth state change event in case the hash hasn't
+    // been processed yet when this component mounts.
+    const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange((event, _session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setLinkType('recovery');
         setPageState('ready');
-      } else if (event === 'SIGNED_IN') {
-        // Invite magic links fire SIGNED_IN; check if user has no password set
-        // by checking the URL hash for type=invite
-        const hash = window.location.hash;
-        if (hash.includes('type=invite')) {
-          setLinkType('invite');
-          setPageState('ready');
-        } else if (session && pageState === 'loading') {
-          // Already authenticated user navigated here directly — send to dashboard
-          navigate('/', { replace: true });
-        }
+      } else if (event === 'SIGNED_IN' && isInvite) {
+        setLinkType('invite');
+        setPageState('ready');
       }
     });
 
-    // Fallback: if no auth event fires within 3s and we're still loading,
-    // the link is invalid or already used.
+    // Fallback: if no session and no event fires within 4s the link is invalid/used.
     const timer = setTimeout(() => {
       setPageState((prev) => {
         if (prev === 'loading') {
@@ -50,7 +59,7 @@ export function SetPasswordPage() {
         }
         return prev;
       });
-    }, 3000);
+    }, 4000);
 
     return () => {
       subscription.unsubscribe();

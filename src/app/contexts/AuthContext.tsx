@@ -74,6 +74,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const sub = onAuthStateChange(async (_event, session) => {
+      // If the user is on the set-password page (invite or reset flow),
+      // do not process SIGNED_IN here — SetPasswordPage handles the session itself.
+      if (window.location.pathname === '/set-password') {
+        return;
+      }
       if (!session?.access_token) {
         setUser(null);
         return;
