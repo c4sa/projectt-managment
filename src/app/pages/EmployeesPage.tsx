@@ -10,9 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '../components/ui/badge';
 import { Users, Plus, Edit2, Trash2, Search, X, UserCheck, Briefcase, Mail, Phone } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '../components/ui/skeleton';
 
 export function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +60,7 @@ export function EmployeesPage() {
   const loadEmployees = async () => {
     const data = await dataStore.getEmployees();
     setEmployees(data);
+    setIsLoading(false);
   };
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -321,7 +324,32 @@ export function EmployeesPage() {
           </div>
 
           {/* Employees List */}
-          {filteredEmployees.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="p-4 border rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-4 w-36" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <Skeleton className="h-8 w-8 rounded" />
+                      <Skeleton className="h-8 w-8 rounded" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredEmployees.length === 0 ? (
             <div className="text-center py-12">
               <UserCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">

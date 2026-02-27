@@ -7,18 +7,21 @@ import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Plus, Search, Building2 } from 'lucide-react';
+import { Skeleton } from '../components/ui/skeleton';
 
 export function VendorsPage() {
   const navigate = useNavigate();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load vendors on mount
   useEffect(() => {
     const loadVendors = async () => {
       const vendorsData = await dataStore.getVendors();
       setVendors(vendorsData);
+      setIsLoading(false);
     };
     loadVendors();
   }, []);
@@ -179,7 +182,25 @@ export function VendorsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredVendors.map((vendor) => (
+        {isLoading && Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <Skeleton className="w-12 h-12 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {!isLoading && filteredVendors.map((vendor) => (
           <Card 
             key={vendor.id} 
             className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -223,7 +244,7 @@ export function VendorsPage() {
         ))}
       </div>
 
-      {filteredVendors.length === 0 && (
+      {!isLoading && filteredVendors.length === 0 && (
         <div className="text-center py-12">
           <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">No vendors found</p>
