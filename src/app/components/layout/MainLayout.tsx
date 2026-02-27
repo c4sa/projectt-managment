@@ -97,16 +97,12 @@ export function MainLayout() {
               exit={{ opacity: 0 }}
               className="flex items-center gap-2"
             >
-              <div className="w-8 h-8 bg-[#7A1516] rounded flex items-center justify-center font-bold">
-                CC
-              </div>
+              <img src="/logo.png" alt="Core Code" className="h-8 w-auto" />
               <span className="font-bold text-lg">Core Code</span>
             </motion.div>
           )}
           {sidebarCollapsed && (
-            <div className="w-8 h-8 bg-[#7A1516] rounded flex items-center justify-center font-bold mx-auto">
-              CC
-            </div>
+            <img src="/logo.png" alt="Core Code" className="h-8 w-auto mx-auto" />
           )}
         </div>
       </div>
