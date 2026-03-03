@@ -12,6 +12,7 @@ import {
   Eye, X, Search, Grid, List,
   FileImage, FileSpreadsheet, FileType, FileCode, FileArchive,
 } from 'lucide-react';
+import { DocumentChatThread } from '../documents/DocumentChatThread';
 import { supabaseAuth } from '../../lib/authClient';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -426,7 +427,7 @@ export function ProjectDocumentsTab({ projectId }: Props) {
 
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-5xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span className="truncate pr-4">{selectedDoc?.name}</span>
@@ -442,7 +443,8 @@ export function ProjectDocumentsTab({ projectId }: Props) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="overflow-auto max-h-[70vh]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="overflow-auto max-h-[70vh]">
             {selectedDoc && (
               <>
                 {isImage(selectedDoc.name) && (
@@ -469,6 +471,13 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                   </div>
                 )}
               </>
+            )}
+            </div>
+
+            {selectedDoc && (
+              <div className="min-h-0">
+                <DocumentChatThread documentId={selectedDoc.id} documentName={selectedDoc.name} />
+              </div>
             )}
           </div>
 

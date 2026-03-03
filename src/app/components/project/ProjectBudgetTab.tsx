@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { dataStore, BudgetItem, BudgetCategory } from '../../data/store';
+import { dataStore, BudgetItem, BudgetCategory, Project } from '../../data/store';
+import { useProjectPermissions } from '../../contexts/ProjectPermissionsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -7,10 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Plus, TrendingUp, TrendingDown, Info, Pencil, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription } from '../ui/alert';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface Props {
   projectId: string;
+  project?: Project;
 }
 
 // Helper component for tooltips
@@ -23,7 +26,9 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
   </div>
 );
 
-export function ProjectBudgetTab({ projectId }: Props) {
+export function ProjectBudgetTab({ projectId, project }: Props) {
+  const permissions = useProjectPermissions();
+  const canModifyBudget = !project || permissions.hasPermission(project, 'budget');
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -251,6 +256,16 @@ export function ProjectBudgetTab({ projectId }: Props) {
       actualSpent: items.reduce((sum, item) => sum + item.actualSpent, 0),
     };
   }).filter(d => d.budgeted > 0 || d.reserved > 0 || d.actualSpent > 0);
+
+  if (!canModifyBudget) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Only the Project Manager can modify budget. Contact your project manager if you need changes.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -39,6 +39,8 @@ import {
   usersHandler,
   projectManpowerHandler,
   manpowerMembersHandler,
+  approvalWorkflowsHandler,
+  documentCommentsHandler,
   handleBudgetCategories,
   handleSequences,
 } from '../lib/db.js';
@@ -64,6 +66,8 @@ const ENTITY_HANDLERS = {
   users:            usersHandler,
   projectManpower:  projectManpowerHandler,
   manpowerMembers:  manpowerMembersHandler,
+  approvalWorkflows: approvalWorkflowsHandler,
+  documentComments: documentCommentsHandler,
 };
 
 export default async function handler(req, res) {
@@ -148,7 +152,7 @@ export default async function handler(req, res) {
           id: authUserId,
           name,
           email,
-          role: role === 'admin' ? 'admin' : 'user',
+          role: role === 'admin' ? 'admin' : role === 'project_manager' ? 'project_manager' : 'user',
           status: 'active',
           created_at: new Date().toISOString(),
         })
@@ -191,7 +195,7 @@ export default async function handler(req, res) {
 
     const { role, status } = req.body || {};
     const update = {};
-    if (role === 'admin' || role === 'user') update.role = role;
+    if (role === 'admin' || role === 'project_manager' || role === 'user') update.role = role;
     if (status === 'active' || status === 'inactive') update.status = status;
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ success: false, error: 'No valid fields to update' });

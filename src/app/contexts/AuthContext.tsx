@@ -7,7 +7,7 @@ import {
   setOnUnauthorized,
 } from '../lib/authClient';
 
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'project_manager' | 'user';
 
 export interface User {
   id: string;
@@ -41,7 +41,7 @@ async function fetchMe(token: string): Promise<User | null> {
     id: d.id,
     name: d.name ?? d.email ?? '',
     email: d.email ?? '',
-    role: d.role === 'admin' ? 'admin' : 'user',
+    role: (d.role === 'admin' ? 'admin' : d.role === 'project_manager' ? 'project_manager' : 'user') as UserRole,
   };
 }
 

@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Globe,
+  Shield,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -66,6 +67,7 @@ export function MainLayout() {
     { path: '/customers', label: t('nav.customers'), icon: <UserCircle className="w-5 h-5" /> },
     { path: '/employees', label: t('nav.employees'), icon: <Users className="w-5 h-5" /> },
     { path: '/reports', label: t('nav.reports'), icon: <BarChart3 className="w-5 h-5" /> },
+    { path: '/approval-permissions', label: t('nav.approvalPermissions'), icon: <Shield className="w-5 h-5" />, adminOnly: true },
     { path: '/settings', label: t('nav.settings'), icon: <Settings className="w-5 h-5" /> },
   ];
 

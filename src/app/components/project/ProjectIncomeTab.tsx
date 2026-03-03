@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { useProjectPermissions } from '../../contexts/ProjectPermissionsContext';
+import type { Project } from '../../data/store';
+import { Alert, AlertDescription } from '../ui/alert';
 import { CustomerInvoiceTab } from './income/CustomerInvoiceTab';
 import { CustomerPaymentTab } from './income/CustomerPaymentTab';
 
 interface Props {
   projectId: string;
+  project?: Project;
 }
 
-export function ProjectIncomeTab({ projectId }: Props) {
+export function ProjectIncomeTab({ projectId, project }: Props) {
+  const permissions = useProjectPermissions();
+  const canModifyIncome = !project || permissions.hasPermission(project, 'income');
   const [activeTab, setActiveTab] = useState('invoices');
   const [prefilledPaymentData, setPrefilledPaymentData] = useState<{
     customerId: string;
@@ -19,6 +25,16 @@ export function ProjectIncomeTab({ projectId }: Props) {
     setPrefilledPaymentData(paymentData);
     setActiveTab('payments');
   };
+
+  if (!canModifyIncome) {
+    return (
+      <Alert>
+        <AlertDescription>
+          You do not have permission to manage income. Contact your project manager.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">

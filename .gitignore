@@ -6,3 +6,10 @@ package-lock.json
 .vscode/
 
 .env.local
+
+Projex/
+documents/
+
+dist/
+
+projex.zip

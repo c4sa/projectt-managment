@@ -17,40 +17,42 @@ import { ReportsPage } from './pages/ReportsPage';
 import { UsersPage } from './pages/UsersPage';
 import { EmployeesPage } from './pages/EmployeesPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ApprovalPermissionsPage } from './pages/ApprovalPermissionsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
-    element: <LoginPage />,
+    Component: LoginPage,
   },
   {
     path: '/forgot-password',
-    element: <ForgotPasswordPage />,
+    Component: ForgotPasswordPage,
   },
   {
     path: '/set-password',
-    element: <SetPasswordPage />,
+    Component: SetPasswordPage,
   },
   {
     path: '/',
-    element: <MainLayout />,
+    Component: MainLayout,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'projects', element: <ProjectsPage /> },
-      { path: 'projects/:id', element: <ProjectDetailPage /> },
-      { path: 'vendors', element: <VendorsPage /> },
-      { path: 'vendors/:id', element: <VendorDetailPage /> },
-      { path: 'customers', element: <CustomersPage /> },
-      { path: 'customers/:id', element: <CustomerDetailPage /> },
-      { path: 'purchase-orders', element: <PurchaseOrdersPage /> },
-      { path: 'invoices', element: <InvoicesPage /> },
-      { path: 'payments', element: <PaymentsPage /> },
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'users', element: <UsersPage /> },
-      { path: 'employees', element: <EmployeesPage /> },
-      { path: 'settings', element: <SettingsPage /> },
-      { path: '*', element: <NotFoundPage /> },
+      { index: true, Component: DashboardPage },
+      { path: 'projects', Component: ProjectsPage },
+      { path: 'projects/:id', Component: ProjectDetailPage },
+      { path: 'vendors', Component: VendorsPage },
+      { path: 'vendors/:id', Component: VendorDetailPage },
+      { path: 'customers', Component: CustomersPage },
+      { path: 'customers/:id', Component: CustomerDetailPage },
+      { path: 'purchase-orders', Component: PurchaseOrdersPage },
+      { path: 'invoices', Component: InvoicesPage },
+      { path: 'payments', Component: PaymentsPage },
+      { path: 'reports', Component: ReportsPage },
+      { path: 'users', Component: UsersPage },
+      { path: 'employees', Component: EmployeesPage },
+      { path: 'approval-permissions', Component: ApprovalPermissionsPage },
+      { path: 'settings', Component: SettingsPage },
+      { path: '*', Component: NotFoundPage },
     ],
   },
 ]);

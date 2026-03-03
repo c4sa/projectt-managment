@@ -4,6 +4,7 @@
 
 import { getAccessToken, notifyUnauthorized } from '../lib/authClient';
 import { numberGenerator, NumberSequences } from '../utils/numberGenerator';
+import type { TeamMember } from '../types/project';
 
 // API base: set VITE_API_BASE_URL=http://localhost:3000 in .env.local for local dev.
 // On Vercel, leave it unset and the app uses relative /api/... paths.
@@ -141,7 +142,9 @@ export interface Project {
   customerId: string;
   projectManager?: string;
   assistantPM?: string;
-  teamMembers: string[];
+  assignedManagerId?: string;
+  assignedManagerName?: string;
+  teamMembers: TeamMember[];
   startDate: string;
   endDate?: string;
   description?: string;
@@ -452,7 +455,7 @@ export interface SystemUser {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'project_manager' | 'user';
   avatar?: string;
   phone?: string;
   department?: string;
@@ -924,6 +927,44 @@ class DataStore {
 
   async deleteDocument(id: string): Promise<void> {
     await apiCall(`/documents/${id}`, 'DELETE');
+  }
+
+  // Approval Workflows
+  async getApprovalWorkflows(): Promise<any[]> {
+    return (await apiCall('/approvalWorkflows')) ?? [];
+  }
+
+  async getApprovalWorkflow(id: string): Promise<any | null> {
+    try {
+      return await apiCall(`/approvalWorkflows/${id}`);
+    } catch {
+      return null;
+    }
+  }
+
+  async addApprovalWorkflow(workflow: Omit<any, 'id' | 'createdAt' | 'updatedAt'>): Promise<any> {
+    return await apiCall('/approvalWorkflows', 'POST', workflow);
+  }
+
+  async updateApprovalWorkflow(id: string, updates: Partial<any>): Promise<any> {
+    return await apiCall(`/approvalWorkflows/${id}`, 'PUT', updates);
+  }
+
+  // Document Comments
+  async getDocumentComments(documentId: string): Promise<import('../types/project').DocumentComment[]> {
+    return (await apiCall(`/documentComments?documentId=${encodeURIComponent(documentId)}`)) ?? [];
+  }
+
+  async addDocumentComment(comment: Omit<import('../types/project').DocumentComment, 'id' | 'createdAt'>): Promise<import('../types/project').DocumentComment> {
+    return await apiCall('/documentComments', 'POST', comment);
+  }
+
+  async updateDocumentComment(id: string, updates: Partial<Pick<import('../types/project').DocumentComment, 'message' | 'edited' | 'editedAt'>>): Promise<import('../types/project').DocumentComment> {
+    return await apiCall(`/documentComments/${id}`, 'PUT', updates);
+  }
+
+  async deleteDocumentComment(id: string): Promise<void> {
+    await apiCall(`/documentComments/${id}`, 'DELETE');
   }
 
   // Print Templates

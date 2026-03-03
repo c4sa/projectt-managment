@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { dataStore, Task, TaskStatus, TaskPriority } from '../../data/store';
+import { dataStore, Task, TaskStatus, TaskPriority, Project } from '../../data/store';
+import { useProjectPermissions } from '../../contexts/ProjectPermissionsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -15,6 +16,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 
 interface Props {
   projectId: string;
+  project?: Project;
 }
 
 const statusColumns: { status: TaskStatus; label: string; color: string }[] = [
@@ -27,12 +29,14 @@ const statusColumns: { status: TaskStatus; label: string; color: string }[] = [
 interface DraggableTaskProps {
   task: Task;
   onUpdate: () => void;
+  canDrag: boolean;
 }
 
-function DraggableTask({ task, onUpdate }: DraggableTaskProps) {
+function DraggableTask({ task, onUpdate, canDrag }: DraggableTaskProps) {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'task',
     item: { id: task.id, status: task.status },
+    canDrag,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -49,10 +53,10 @@ function DraggableTask({ task, onUpdate }: DraggableTaskProps) {
 
   return (
     <div
-      ref={drag}
-      className={`p-3 bg-white border rounded-lg cursor-move hover:shadow-md transition-shadow ${
-        isDragging ? 'opacity-50' : ''
-      }`}
+      ref={canDrag ? drag : undefined}
+      className={`p-3 bg-white border rounded-lg hover:shadow-md transition-shadow ${
+        canDrag ? 'cursor-move' : ''
+      } ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="flex items-start justify-between mb-2">
         <h4 className="font-medium text-sm">{task.title}</h4>
@@ -88,13 +92,14 @@ interface DroppableColumnProps {
   tasks: Task[];
   onDrop: (taskId: string, newStatus: TaskStatus) => void;
   onUpdate: () => void;
+  canDrop: boolean;
 }
 
-function DroppableColumn({ status, label, color, tasks, onDrop, onUpdate }: DroppableColumnProps) {
+function DroppableColumn({ status, label, color, tasks, onDrop, onUpdate, canDrop }: DroppableColumnProps) {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'task',
     drop: (item: { id: string; status: TaskStatus }) => {
-      if (item.status !== status) {
+      if (canDrop && item.status !== status) {
         onDrop(item.id, status);
       }
     },
@@ -113,14 +118,17 @@ function DroppableColumn({ status, label, color, tasks, onDrop, onUpdate }: Drop
       </div>
       <div className="space-y-3">
         {tasks.map((task) => (
-          <DraggableTask key={task.id} task={task} onUpdate={onUpdate} />
+          <DraggableTask key={task.id} task={task} onUpdate={onUpdate} canDrag={canDrop} />
         ))}
       </div>
     </div>
   );
 }
 
-export function ProjectTasksTab({ projectId }: Props) {
+export function ProjectTasksTab({ projectId, project }: Props) {
+  const permissions = useProjectPermissions();
+  const canCreateTask = !project || permissions.isProjectManager(project);
+  const canUpdateTasks = !project || permissions.hasPermission(project, 'tasks');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -177,13 +185,14 @@ export function ProjectTasksTab({ projectId }: Props) {
           </TabsList>
         </Tabs>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
-              <Plus className="w-4 h-4 mr-2" />
-              New Task
-            </Button>
-          </DialogTrigger>
+        {canCreateTask && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
+                <Plus className="w-4 h-4 mr-2" />
+                New Task
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
@@ -259,7 +268,8 @@ export function ProjectTasksTab({ projectId }: Props) {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       {view === 'kanban' ? (
@@ -274,6 +284,7 @@ export function ProjectTasksTab({ projectId }: Props) {
                   tasks={columnTasks}
                   onDrop={handleTaskDrop}
                   onUpdate={loadTasks}
+                  canDrop={canUpdateTasks}
                 />
               );
             })}

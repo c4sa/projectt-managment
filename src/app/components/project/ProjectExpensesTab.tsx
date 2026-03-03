@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { useProjectPermissions } from '../../contexts/ProjectPermissionsContext';
+import type { Project } from '../../data/store';
+import { Alert, AlertDescription } from '../ui/alert';
 import { VendorContractsPOsTab } from './expenses/VendorContractsPOsTab';
 import { VendorInvoiceTab } from './expenses/VendorInvoiceTab';
 import { VendorPaymentTab } from './expenses/VendorPaymentTab';
 
 interface Props {
   projectId: string;
+  project?: Project;
 }
 
-export function ProjectExpensesTab({ projectId }: Props) {
+export function ProjectExpensesTab({ projectId, project }: Props) {
+  const permissions = useProjectPermissions();
+  const canModifyExpenses = !project || permissions.hasPermission(project, 'expenses');
   const [activeTab, setActiveTab] = useState('contracts');
   const [prefilledPaymentData, setPrefilledPaymentData] = useState<{
     vendorId: string;
@@ -21,6 +27,16 @@ export function ProjectExpensesTab({ projectId }: Props) {
     setPrefilledPaymentData(paymentData);
     setActiveTab('payments');
   };
+
+  if (!canModifyExpenses) {
+    return (
+      <Alert>
+        <AlertDescription>
+          You do not have permission to manage expenses. Contact your project manager.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">

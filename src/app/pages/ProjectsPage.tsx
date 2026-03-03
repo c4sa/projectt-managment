@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useProjectPermissions } from '../contexts/ProjectPermissionsContext';
 import { dataStore, Project, ProjectStatus } from '../data/store';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -19,9 +21,11 @@ import { Skeleton } from '../components/ui/skeleton';
 export function ProjectsPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const permissions = useProjectPermissions();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsWithCalculations, setProjectsWithCalculations] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [availableManagers, setAvailableManagers] = useState<{ id: string; name: string }[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -56,10 +60,21 @@ export function ProjectsPage() {
     setProjectsWithCalculations(withCalcs);
   };
 
-  // Load projects and customers on mount
+  // Load projects, customers, and PM users on mount
   useEffect(() => {
     loadProjectsWithCalcs();
   }, []);
+
+  useEffect(() => {
+    if (dialogOpen) {
+      dataStore.getUsers().then((users) => {
+        const managers = users
+          .filter((u) => u.role === 'project_manager' || u.role === 'admin')
+          .map((u) => ({ id: u.id, name: u.name }));
+        setAvailableManagers(managers);
+      });
+    }
+  }, [dialogOpen]);
 
   // Generate project code when dialog opens
   useEffect(() => {
@@ -68,7 +83,8 @@ export function ProjectsPage() {
     }
   }, [dialogOpen]);
 
-  const filteredProjects = projectsWithCalculations.filter(project => {
+  const accessibleProjects = projectsWithCalculations.filter((p) => permissions.canAccessProject(p));
+  const filteredProjects = accessibleProjects.filter((project) => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
@@ -76,8 +92,14 @@ export function ProjectsPage() {
   });
 
   const handleCreateProject = async () => {
+    if (!newProject.assignedManagerId) {
+      toast.error(t('projects.managerRequiredError'));
+      return;
+    }
     await dataStore.addProject({
       ...newProject,
+      assignedManagerId: newProject.assignedManagerId,
+      assignedManagerName: newProject.assignedManagerName,
       teamMembers: [],
       spent: 0,
     });
@@ -90,6 +112,8 @@ export function ProjectsPage() {
       name: '',
       status: 'planning',
       customerId: '',
+      assignedManagerId: '',
+      assignedManagerName: '',
       description: '',
       location: '',
       budget: 0,
@@ -120,6 +144,8 @@ export function ProjectsPage() {
     name: '',
     status: 'planning' as ProjectStatus,
     customerId: '',
+    assignedManagerId: '',
+    assignedManagerName: '',
     description: '',
     location: '',
     budget: 0,
@@ -181,13 +207,14 @@ export function ProjectsPage() {
           <p className="text-gray-500 mt-1">Manage your construction projects</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
-              <Plus className="w-4 h-4 mr-2" />
-              {t('projects.newProject')}
-            </Button>
-          </DialogTrigger>
+        {permissions.canCreateProject() && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
+                <Plus className="w-4 h-4 mr-2" />
+                {t('projects.newProject')}
+              </Button>
+            </DialogTrigger>
           <DialogContent
             className="max-w-2xl max-h-[90vh] overflow-y-auto"
             onInteractOutside={(e) => e.preventDefault()}
@@ -221,6 +248,32 @@ export function ProjectsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label>{t('projects.assignManager')} *</Label>
+                  <Select
+                    value={newProject.assignedManagerId || ''}
+                    onValueChange={(value) => {
+                      const manager = availableManagers.find((m) => m.id === value);
+                      setNewProject({
+                        ...newProject,
+                        assignedManagerId: value,
+                        assignedManagerName: manager?.name ?? '',
+                      });
+                    }}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('projects.selectManager')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableManagers.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label>{t('common.status')}</Label>
                   <Select value={newProject.status} onValueChange={(value) => setNewProject({ ...newProject, status: value as ProjectStatus })}>
                     <SelectTrigger>
@@ -234,7 +287,7 @@ export function ProjectsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2">
                   <Label>Customer</Label>
                   <CustomerSelector
                     value={newProject.customerId}
@@ -420,7 +473,8 @@ export function ProjectsPage() {
               </div>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       {/* Filters */}
@@ -452,7 +506,7 @@ export function ProjectsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {(['planning', 'active', 'on_hold', 'completed'] as ProjectStatus[]).map(status => {
-          const count = projects.filter(p => p.status === status).length;
+          const count = accessibleProjects.filter(p => p.status === status).length;
           return (
             <Card key={status} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter(status)}>
               <CardContent className="p-4">
