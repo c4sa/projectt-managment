@@ -9,7 +9,7 @@ package-lock.json
 .env.vercel.check
 
 Projex/
-documents/
+/documents/
 
 dist/
 
