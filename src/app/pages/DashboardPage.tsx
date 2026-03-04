@@ -76,6 +76,48 @@ export function DashboardPage() {
     .reduce((sum, inv) => sum + inv.total, 0);
   const outstandingReceivables = totalInvoiced - totalRevenue;
 
+  // Percentage changes: this period (month-to-date) vs previous month (full month)
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const isBeforeStartOfThisMonth = (dateStr: string) => new Date(dateStr) < startOfThisMonth;
+
+  const receiptsPaid = payments.filter(p => p.type === 'receipt' && p.status === 'paid');
+  const paymentsPaid = payments.filter(p => p.type === 'payment' && p.status === 'paid');
+
+  const prevRevenue = receiptsPaid
+    .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
+    .reduce((sum, p) => sum + p.amount, 0);
+  const prevExpenses = paymentsPaid
+    .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
+    .reduce((sum, p) => sum + (p.subtotal || p.amount), 0);
+  const prevProfit = prevRevenue - prevExpenses;
+
+  const prevInvoiced = customerInvoices
+    .filter(inv => inv.status !== 'draft' && isBeforeStartOfThisMonth(inv.issueDate))
+    .reduce((sum, inv) => sum + inv.total, 0);
+  const prevReceived = receiptsPaid
+    .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
+    .reduce((sum, p) => sum + p.amount, 0);
+  const prevOutstanding = prevInvoiced - prevReceived;
+
+  const formatPctChange = (current: number, previous: number, invertGood = false): { text: string; positive: boolean } => {
+    if (previous === 0) {
+      if (current === 0) return { text: '0%', positive: true };
+      return { text: '+100%', positive: !invertGood };
+    }
+    const pct = ((current - previous) / previous) * 100;
+    const rounded = Math.round(pct * 10) / 10;
+    const text = rounded >= 0 ? `+${rounded}%` : `${rounded}%`;
+    const positive = invertGood ? rounded <= 0 : rounded >= 0;
+    return { text, positive };
+  };
+
+  const revenueChange = formatPctChange(totalRevenue, prevRevenue);
+  const expensesChange = formatPctChange(totalExpenses, prevExpenses);
+  const profitChange = formatPctChange(totalProfit, prevProfit);
+  const outstandingChange = formatPctChange(outstandingReceivables, prevOutstanding, true);
+
   const formatCurrency = (amount: number) => {
     return `${amount.toLocaleString('en-SA')} SAR`;
   };
@@ -145,32 +187,32 @@ export function DashboardPage() {
     {
       title: t('dashboard.revenue'),
       value: formatCurrency(totalRevenue),
-      change: '+12.5%',
-      positive: true,
+      change: revenueChange.text,
+      positive: revenueChange.positive,
       icon: <DollarSign className="w-6 h-6" />,
       color: 'bg-green-500',
     },
     {
       title: t('dashboard.expenses'),
       value: formatCurrency(totalExpenses),
-      change: '+8.2%',
-      positive: false,
+      change: expensesChange.text,
+      positive: !expensesChange.positive,
       icon: <TrendingDown className="w-6 h-6" />,
       color: 'bg-red-500',
     },
     {
       title: t('dashboard.profit'),
       value: formatCurrency(totalProfit),
-      change: '+15.3%',
-      positive: true,
+      change: profitChange.text,
+      positive: profitChange.positive,
       icon: <TrendingUp className="w-6 h-6" />,
       color: 'bg-blue-500',
     },
     {
       title: t('dashboard.outstanding'),
       value: formatCurrency(outstandingReceivables),
-      change: '-5.1%',
-      positive: true,
+      change: outstandingChange.text,
+      positive: outstandingChange.positive,
       icon: <AlertCircle className="w-6 h-6" />,
       color: 'bg-orange-500',
     },
