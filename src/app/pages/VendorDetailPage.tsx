@@ -26,10 +26,12 @@ import {
 import { toast } from 'sonner';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { AccessDenied } from '../components/AccessDenied';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('vendors', 'view');
   const canEdit = hasPermission('vendors', 'edit');
@@ -77,11 +79,11 @@ export function VendorDetailPage() {
     setVendor(updatedVendor || null);
 
     setEditDialogOpen(false);
-    toast.success('Vendor updated successfully');
+    toast.success(t('vendor.updatedSuccess'));
   };
 
   if (!canView) {
-    return <AccessDenied message="You don't have permission to view vendor details." />;
+    return <AccessDenied message={t('vendor.accessDenied')} />;
   }
 
   if (loading) {
@@ -89,7 +91,7 @@ export function VendorDetailPage() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-[#7A1516] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">Loading vendor...</p>
+          <p className="text-gray-500">{t('vendor.loading')}</p>
         </div>
       </div>
     );
@@ -159,25 +161,25 @@ export function VendorDetailPage() {
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Edit className="w-4 h-4 mr-2" />
-              Edit Vendor
+              {t('vendor.edit')}
             </Button>
           </DialogTrigger>
           )}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Vendor</DialogTitle>
+              <DialogTitle>{t('vendor.edit')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Vendor Name</Label>
+                  <Label>{t('vendors.vendorName')}</Label>
                   <Input
                     value={editedVendor.name || ''}
                     onChange={(e) => setEditedVendor({ ...editedVendor, name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Contact Person</Label>
+                  <Label>{t('vendors.contactPerson')}</Label>
                   <Input
                     value={editedVendor.contactPerson || ''}
                     onChange={(e) => setEditedVendor({ ...editedVendor, contactPerson: e.target.value })}
@@ -187,7 +189,7 @@ export function VendorDetailPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>{t('common.email')}</Label>
                   <Input
                     type="email"
                     value={editedVendor.email || ''}
@@ -195,7 +197,7 @@ export function VendorDetailPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone</Label>
+                  <Label>{t('common.phone')}</Label>
                   <Input
                     value={editedVendor.phone || ''}
                     onChange={(e) => setEditedVendor({ ...editedVendor, phone: e.target.value })}
@@ -205,14 +207,14 @@ export function VendorDetailPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>IBAN</Label>
+                  <Label>{t('vendors.iban')}</Label>
                   <Input
                     value={editedVendor.iban || ''}
                     onChange={(e) => setEditedVendor({ ...editedVendor, iban: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>VAT Number</Label>
+                  <Label>{t('vendors.vatNumber')}</Label>
                   <Input
                     value={editedVendor.vatNumber || ''}
                     onChange={(e) => setEditedVendor({ ...editedVendor, vatNumber: e.target.value })}
@@ -229,7 +231,7 @@ export function VendorDetailPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Address</Label>
+                <Label>{t('common.address')}</Label>
                 <Input
                   value={editedVendor.address || ''}
                   onChange={(e) => setEditedVendor({ ...editedVendor, address: e.target.value })}
@@ -238,12 +240,12 @@ export function VendorDetailPage() {
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 {canEdit && (
                 <Button onClick={handleUpdateVendor} className="bg-[#7A1516] hover:bg-[#5A1012]">
                   <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                  {t('common.saveChanges')}
                 </Button>
                 )}
               </div>
@@ -258,7 +260,7 @@ export function VendorDetailPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Purchase Orders</p>
+                <p className="text-sm text-gray-500">{t('vendor.totalPurchaseOrders')}</p>
                 <p className="text-2xl font-bold mt-1">{purchaseOrders.length}</p>
               </div>
               <ShoppingCart className="w-8 h-8 text-blue-500" />
@@ -273,7 +275,7 @@ export function VendorDetailPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Invoices</p>
+                <p className="text-sm text-gray-500">{t('vendor.totalInvoices')}</p>
                 <p className="text-2xl font-bold mt-1">{invoices.length}</p>
               </div>
               <Receipt className="w-8 h-8 text-purple-500" />
@@ -288,7 +290,7 @@ export function VendorDetailPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Paid</p>
+                <p className="text-sm text-gray-500">{t('vendor.totalPaid')}</p>
                 <p className="text-2xl font-bold mt-1 text-green-600">
                   SAR {totalPaidAmount.toLocaleString()}
                 </p>
@@ -296,7 +298,7 @@ export function VendorDetailPage() {
               <Wallet className="w-8 h-8 text-green-500" />
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              {payments.filter(p => p.status === 'paid').length} payments
+              {payments.filter(p => p.status === 'paid').length} {t('vendor.paymentsCount')}
             </p>
           </CardContent>
         </Card>
@@ -305,7 +307,7 @@ export function VendorDetailPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Outstanding</p>
+                <p className="text-sm text-gray-500">{t('vendor.outstanding')}</p>
                 <p className="text-2xl font-bold mt-1 text-red-600">
                   SAR {outstandingAmount.toLocaleString()}
                 </p>
@@ -313,7 +315,7 @@ export function VendorDetailPage() {
               <CreditCard className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              {invoices.filter(inv => inv.status !== 'paid').length} unpaid invoices
+              {invoices.filter(inv => inv.status !== 'paid').length} {t('vendor.unpaidInvoices')}
             </p>
           </CardContent>
         </Card>
@@ -324,19 +326,19 @@ export function VendorDetailPage() {
         <TabsList>
           <TabsTrigger value="overview">
             <Info className="w-4 h-4 mr-2" />
-            Overview
+            {t('vendor.overview')}
           </TabsTrigger>
           <TabsTrigger value="purchase-orders">
             <ShoppingCart className="w-4 h-4 mr-2" />
-            Purchase Orders ({purchaseOrders.length})
+            {t('vendor.purchaseOrders')} ({purchaseOrders.length})
           </TabsTrigger>
           <TabsTrigger value="invoices">
             <Receipt className="w-4 h-4 mr-2" />
-            Invoices ({invoices.length})
+            {t('vendor.invoices')} ({invoices.length})
           </TabsTrigger>
           <TabsTrigger value="payments">
             <Wallet className="w-4 h-4 mr-2" />
-            Payments ({payments.length})
+            {t('vendor.payments')} ({payments.length})
           </TabsTrigger>
         </TabsList>
 
@@ -345,13 +347,13 @@ export function VendorDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Vendor Information</CardTitle>
+                <CardTitle>{t('vendor.vendorInfo')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Building2 className="w-5 h-5 text-gray-400" />
                   <div>
-                    <p className="text-sm text-gray-500">Company Name</p>
+                    <p className="text-sm text-gray-500">{t('vendor.companyName')}</p>
                     <p className="font-medium">{vendor.name}</p>
                   </div>
                 </div>
@@ -360,7 +362,7 @@ export function VendorDetailPage() {
                   <div className="flex items-center gap-3">
                     <Info className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">Contact Person</p>
+                      <p className="text-sm text-gray-500">{t('vendors.contactPerson')}</p>
                       <p className="font-medium">{vendor.contactPerson}</p>
                     </div>
                   </div>
@@ -369,7 +371,7 @@ export function VendorDetailPage() {
                 <div className="flex items-center gap-3">
                   <Mail className="w-5 h-5 text-gray-400" />
                   <div>
-                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="text-sm text-gray-500">{t('common.email')}</p>
                     <p className="font-medium">{vendor.email}</p>
                   </div>
                 </div>
@@ -377,7 +379,7 @@ export function VendorDetailPage() {
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-gray-400" />
                   <div>
-                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="text-sm text-gray-500">{t('common.phone')}</p>
                     <p className="font-medium">{vendor.phone}</p>
                   </div>
                 </div>
@@ -396,7 +398,7 @@ export function VendorDetailPage() {
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">Specialty</p>
+                      <p className="text-sm text-gray-500">{t('common.specialty')}</p>
                       <p className="font-medium">{vendor.specialty}</p>
                     </div>
                   </div>
@@ -406,14 +408,14 @@ export function VendorDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Financial Information</CardTitle>
+                <CardTitle>{t('vendor.financialInfo')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {vendor.iban && (
                   <div className="flex items-center gap-3">
                     <CreditCard className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">IBAN</p>
+                      <p className="text-sm text-gray-500">{t('vendors.iban')}</p>
                       <p className="font-medium font-mono text-sm">{vendor.iban}</p>
                     </div>
                   </div>
@@ -423,7 +425,7 @@ export function VendorDetailPage() {
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">VAT Number</p>
+                      <p className="text-sm text-gray-500">{t('vendors.vatNumber')}</p>
                       <p className="font-medium font-mono">{vendor.vatNumber}</p>
                     </div>
                   </div>
@@ -431,19 +433,19 @@ export function VendorDetailPage() {
 
                 <div className="pt-4 border-t space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Orders Value</span>
+                    <span className="text-gray-500">{t('vendor.totalOrdersValue')}</span>
                     <span className="font-semibold">SAR {totalPOAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Invoiced</span>
+                    <span className="text-gray-500">{t('vendor.totalInvoiced')}</span>
                     <span className="font-semibold">SAR {totalInvoiceAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Paid</span>
+                    <span className="text-gray-500">{t('vendor.totalPaid')}</span>
                     <span className="font-semibold text-green-600">SAR {totalPaidAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t">
-                    <span className="font-semibold">Outstanding Balance</span>
+                    <span className="font-semibold">{t('vendor.outstandingBalance')}</span>
                     <span className="font-bold text-red-600">SAR {outstandingAmount.toLocaleString()}</span>
                   </div>
                 </div>
@@ -456,13 +458,13 @@ export function VendorDetailPage() {
         <TabsContent value="purchase-orders">
           <Card>
             <CardHeader>
-              <CardTitle>Purchase Orders</CardTitle>
+              <CardTitle>{t('vendor.purchaseOrders')}</CardTitle>
             </CardHeader>
             <CardContent>
               {purchaseOrders.length === 0 ? (
                 <div className="text-center py-12">
                   <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No purchase orders found</p>
+                  <p className="text-gray-500">{t('vendor.noPurchaseOrders')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -482,7 +484,7 @@ export function VendorDetailPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-lg">SAR {(po.total || 0).toLocaleString()}</p>
-                        <p className="text-sm text-gray-500">Total Amount</p>
+                        <p className="text-sm text-gray-500">{t('vendor.totalAmount')}</p>
                       </div>
                     </div>
                   ))}
@@ -496,13 +498,13 @@ export function VendorDetailPage() {
         <TabsContent value="invoices">
           <Card>
             <CardHeader>
-              <CardTitle>Vendor Invoices</CardTitle>
+              <CardTitle>{t('vendor.vendorInvoices')}</CardTitle>
             </CardHeader>
             <CardContent>
               {invoices.length === 0 ? (
                 <div className="text-center py-12">
                   <Receipt className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No invoices found</p>
+                  <p className="text-gray-500">{t('vendor.noInvoices')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -540,13 +542,13 @@ export function VendorDetailPage() {
         <TabsContent value="payments">
           <Card>
             <CardHeader>
-              <CardTitle>Payment History</CardTitle>
+              <CardTitle>{t('vendor.paymentHistory')}</CardTitle>
             </CardHeader>
             <CardContent>
               {payments.length === 0 ? (
                 <div className="text-center py-12">
                   <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No payments found</p>
+                  <p className="text-gray-500">{t('vendor.noPayments')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">

@@ -9,6 +9,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Building2, Mail, Phone, MapPin, FileCheck, FileText, ExternalLink, Edit2, Save, X, Upload, Link as LinkIcon, DollarSign, TrendingUp } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ProjectInformationTabProps {
   project: Project;
@@ -17,6 +18,7 @@ interface ProjectInformationTabProps {
 
 export function ProjectInformationTab({ project, canEdit = true }: ProjectInformationTabProps) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [customer, setCustomer] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState(project);
@@ -127,17 +129,17 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
         {!isEditing ? (
           <Button onClick={() => setIsEditing(true)} className="bg-[#7A1516] hover:bg-[#5a0f10]">
             <Edit2 className="w-4 h-4 mr-2" />
-            Edit Project Information
+            {t('project.editInfo')}
           </Button>
         ) : (
           <div className="flex gap-2">
             <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
               <Save className="w-4 h-4 mr-2" />
-              Save Changes
+              {t('common.saveChanges')}
             </Button>
             <Button onClick={handleCancel} variant="outline">
               <X className="w-4 h-4 mr-2" />
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         )}
@@ -150,8 +152,8 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-[#7A1516]" />
-              Customer Details
-              <span className="text-sm text-gray-500 ml-auto">(Click to view full details)</span>
+              {t('project.customerDetails')}
+              <span className="text-sm text-gray-500 ml-auto">{t('project.clickToView')}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -169,7 +171,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
 
                 {customer.contactPerson && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Contact Person</label>
+                    <label className="text-sm font-medium text-gray-500">{t('project.contactPerson')}</label>
                     <p className="mt-1">{customer.contactPerson}</p>
                   </div>
                 )}
@@ -210,7 +212,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                 </div>
               </div>
             ) : (
-              <p className="text-gray-500">No customer assigned to this project</p>
+              <p className="text-gray-500">{t('project.noCustomerAssigned')}</p>
             )}
           </CardContent>
         </Card>
@@ -220,14 +222,14 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#7A1516]" />
-              Contract Details
+              {t('project.contractDetails')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isEditing ? (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Contract Value (SAR)</Label>
+                  <Label>{t('project.contractValueSar')}</Label>
                   <Input
                     type="number"
                     value={editedProject.contractValue || 0}
@@ -236,7 +238,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                 </div>
 
                 <div className="space-y-2">
-                  <Label>VAT Status</Label>
+                  <Label>{t('project.vatStatus')}</Label>
                   <Select
                     value={editedProject.vatStatus || 'not_applicable'}
                     onValueChange={(value: any) => setEditedProject({ ...editedProject, vatStatus: value })}
@@ -245,9 +247,9 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="not_applicable">VAT Not Applicable</SelectItem>
-                      <SelectItem value="inclusive">VAT Inclusive</SelectItem>
-                      <SelectItem value="exclusive">VAT Exclusive</SelectItem>
+                      <SelectItem value="not_applicable">{t('project.vatNotApplicable')}</SelectItem>
+                      <SelectItem value="inclusive">{t('project.vatInclusive')}</SelectItem>
+                      <SelectItem value="exclusive">{t('project.vatExclusive')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -255,11 +257,11 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                 {/* VAT Breakdown Preview */}
                 {contractBreakdown && editedProject.contractValue && editedProject.contractValue > 0 && (
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                    <h4 className="font-medium text-sm">Financial Breakdown Preview</h4>
+                    <h4 className="font-medium text-sm">{t('project.financialBreakdownPreview')}</h4>
                     
                     {editedProject.vatStatus === 'not_applicable' && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Total</span>
+                        <span className="text-gray-600">{t('common.total')}</span>
                         <span className="font-semibold">{contractBreakdown.total.toLocaleString('en-SA')} SAR</span>
                       </div>
                     )}
@@ -267,15 +269,15 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                     {editedProject.vatStatus === 'inclusive' && (
                       <>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Contract Value</span>
+                          <span className="text-gray-600">{t('project.contractValue')}</span>
                           <span className="font-semibold">{editedProject.contractValue.toLocaleString('en-SA')} SAR</span>
                         </div>
                         <div className="flex justify-between text-sm border-t pt-2">
-                          <span className="text-gray-600">Value Without VAT</span>
+                          <span className="text-gray-600">{t('project.valueWithoutVat')}</span>
                           <span className="font-semibold text-green-600">{contractBreakdown.subtotal.toFixed(2)} SAR</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">VAT Amount (15%)</span>
+                          <span className="text-gray-600">{t('project.vatAmount')}</span>
                           <span className="font-semibold text-gray-500">{contractBreakdown.vatAmount.toFixed(2)} SAR</span>
                         </div>
                       </>
@@ -284,15 +286,15 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                     {editedProject.vatStatus === 'exclusive' && (
                       <>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Contract Value</span>
+                          <span className="text-gray-600">{t('project.contractValue')}</span>
                           <span className="font-semibold">{contractBreakdown.subtotal.toLocaleString('en-SA')} SAR</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">VAT (15%)</span>
+                          <span className="text-gray-600">{t('project.vat15')}</span>
                           <span className="font-semibold text-gray-500">+ {contractBreakdown.vatAmount.toLocaleString('en-SA')} SAR</span>
                         </div>
                         <div className="flex justify-between text-sm border-t pt-2">
-                          <span className="text-gray-600">Total (Incl. VAT)</span>
+                          <span className="text-gray-600">{t('project.totalInclVat')}</span>
                           <span className="font-semibold text-green-600">{contractBreakdown.total.toLocaleString('en-SA')} SAR</span>
                         </div>
                       </>
@@ -301,21 +303,21 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                 )}
 
                 <div className="border-t pt-4">
-                  <Label className="mb-2 block">Contract Document</Label>
+                  <Label className="mb-2 block">{t('project.contractDocument')}</Label>
                   {editedProject.contractDocument && editedProject.contractDocument.startsWith('data:') ? (
                     <div className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded border border-green-200 mb-2">
                       <FileText className="w-4 h-4 text-green-600" />
-                      <span className="flex-1 text-green-700">Document uploaded</span>
+                      <span className="flex-1 text-green-700">{t('project.documentUploadedShort')}</span>
                       <Button size="sm" variant="ghost" className="h-7 text-red-500 hover:text-red-700"
                         onClick={() => setEditedProject({ ...editedProject, contractDocument: '' })}>
-                        Remove
+                        {t('project.remove')}
                       </Button>
                     </div>
                   ) : null}
                   <label className="cursor-pointer">
                     <span className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                       <Upload className="w-4 h-4 mr-2" />
-                      {editedProject.contractDocument && editedProject.contractDocument.startsWith('data:') ? 'Replace Document' : 'Upload Document'}
+                      {editedProject.contractDocument && editedProject.contractDocument.startsWith('data:') ? t('project.replaceDocument') : t('project.uploadDocument')}
                     </span>
                     <input
                       type="file"
@@ -333,11 +335,11 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                       }}
                     />
                   </label>
-                  <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX. Max 10MB</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('project.fileSizeHint')}</p>
                 </div>
 
                 <div>
-                  <Label className="mb-2 block">Cloud Storage Link</Label>
+                  <Label className="mb-2 block">{t('project.cloudStorageLink')}</Label>
                   <Input
                     placeholder="https://cloudstorage.com/contract.pdf"
                     value={editedProject.contractLink || ''}
@@ -350,17 +352,17 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                 {project.contractValue ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Contract Value</label>
+                      <label className="text-sm font-medium text-gray-500">{t('project.contractValue')}</label>
                       <p className="text-2xl font-bold text-[#7A1516] mt-1">
                         {project.contractValue.toLocaleString('en-SA')} SAR
                       </p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-500">VAT Status</label>
+                      <label className="text-sm font-medium text-gray-500">{t('project.vatStatus')}</label>
                       <div className="mt-1">
                         <Badge className="bg-blue-100 text-blue-700">
-                          {contractBreakdown?.label || 'Not Specified'}
+                          {contractBreakdown ? (project.vatStatus === 'not_applicable' ? t('project.notApplicable') : project.vatStatus === 'inclusive' ? t('project.vatInclusive') : project.vatStatus === 'exclusive' ? t('project.vatExclusive') : t('customer.notSpecified')) : t('customer.notSpecified')}
                         </Badge>
                       </div>
                     </div>
@@ -368,11 +370,11 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                     {/* VAT Breakdown */}
                     {contractBreakdown && (
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-                        <h4 className="font-medium text-sm">Financial Breakdown</h4>
+                        <h4 className="font-medium text-sm">{t('project.financialBreakdown')}</h4>
                         
                         {project.vatStatus === 'not_applicable' && (
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Total</span>
+                            <span className="text-gray-600">{t('common.total')}</span>
                             <span className="font-semibold">{contractBreakdown.total.toLocaleString('en-SA')} SAR</span>
                           </div>
                         )}
@@ -380,15 +382,15 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                         {project.vatStatus === 'inclusive' && (
                           <>
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Contract Value</span>
+                              <span className="text-gray-600">{t('project.contractValue')}</span>
                               <span className="font-semibold">{project.contractValue.toLocaleString('en-SA')} SAR</span>
                             </div>
                             <div className="flex justify-between text-sm border-t pt-2">
-                              <span className="text-gray-600">Value Without VAT</span>
+                              <span className="text-gray-600">{t('project.valueWithoutVat')}</span>
                               <span className="font-semibold text-green-600">{contractBreakdown.subtotal.toFixed(2)} SAR</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">VAT Amount (15%)</span>
+                              <span className="text-gray-600">{t('project.vatAmount')}</span>
                               <span className="font-semibold text-gray-500">{contractBreakdown.vatAmount.toFixed(2)} SAR</span>
                             </div>
                           </>
@@ -397,15 +399,15 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                         {project.vatStatus === 'exclusive' && (
                           <>
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">Contract Value</span>
+                              <span className="text-gray-600">{t('project.contractValue')}</span>
                               <span className="font-semibold">{contractBreakdown.subtotal.toLocaleString('en-SA')} SAR</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">VAT (15%)</span>
+                              <span className="text-gray-600">{t('project.vat15')}</span>
                               <span className="font-semibold text-gray-500">+ {contractBreakdown.vatAmount.toLocaleString('en-SA')} SAR</span>
                             </div>
                             <div className="flex justify-between text-sm border-t pt-2">
-                              <span className="text-gray-600">Total (Incl. VAT)</span>
+                              <span className="text-gray-600">{t('project.totalInclVat')}</span>
                               <span className="font-semibold text-green-600">{contractBreakdown.total.toLocaleString('en-SA')} SAR</span>
                             </div>
                           </>
@@ -416,7 +418,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                     {/* Contract Documents */}
                     {(project.contractDocument || project.contractLink) && (
                       <div className="pt-4 border-t">
-                        <label className="text-sm font-medium text-gray-500 block mb-2">Contract Documents</label>
+                        <label className="text-sm font-medium text-gray-500 block mb-2">{t('project.contractDocuments')}</label>
                         <div className="space-y-2">
                           {project.contractDocument && (
                             <div className="flex items-center gap-2 text-sm p-2 bg-gray-50 rounded border">
@@ -437,7 +439,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                                   }
                                 }}
                               >
-                                View
+                                {t('project.view')}
                               </Button>
                             </div>
                           )}
@@ -459,7 +461,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                     )}
                   </div>
                 ) : (
-                  <p className="text-gray-500">No contract details available</p>
+                  <p className="text-gray-500">{t('project.noContractDetails')}</p>
                 )}
               </>
             )}
@@ -469,14 +471,14 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
         {/* Project Details Card */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Project Details</CardTitle>
+            <CardTitle>{t('project.projectDetails')}</CardTitle>
           </CardHeader>
           <CardContent>
             {isEditing ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Project Name</Label>
+                    <Label>{t('project.projectName')}</Label>
                     <Input
                       value={editedProject.name}
                       onChange={(e) => setEditedProject({ ...editedProject, name: e.target.value })}
@@ -484,7 +486,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Location</Label>
+                    <Label>{t('project.location')}</Label>
                     <Input
                       value={editedProject.location || ''}
                       onChange={(e) => setEditedProject({ ...editedProject, location: e.target.value })}
@@ -492,7 +494,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Status</Label>
+                    <Label>{t('project.status')}</Label>
                     <Select
                       value={editedProject.status}
                       onValueChange={(value: any) => setEditedProject({ ...editedProject, status: value })}
@@ -501,16 +503,16 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="planning">Planning</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="on_hold">On Hold</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="planning">{t('projects.status.planning')}</SelectItem>
+                        <SelectItem value="active">{t('projects.status.active')}</SelectItem>
+                        <SelectItem value="on_hold">{t('projects.status.on_hold')}</SelectItem>
+                        <SelectItem value="completed">{t('projects.status.completed')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Start Date</Label>
+                    <Label>{t('project.startDate')}</Label>
                     <Input
                       type="date"
                       value={editedProject.startDate}
@@ -519,7 +521,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                   </div>
 
                   <div className="space-y-2">
-                    <Label>End Date</Label>
+                    <Label>{t('project.endDate')}</Label>
                     <Input
                       type="date"
                       value={editedProject.endDate || ''}
@@ -528,7 +530,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Budget (SAR)</Label>
+                    <Label>{t('project.budgetSar')}</Label>
                     <Input
                       type="number"
                       value={editedProject.budget}
@@ -538,7 +540,7 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Description</Label>
+                  <Label>{t('project.description')}</Label>
                   <Textarea
                     value={editedProject.description || ''}
                     onChange={(e) => setEditedProject({ ...editedProject, description: e.target.value })}
@@ -549,23 +551,23 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Location</label>
-                  <p className="mt-1">{project.location || 'Not specified'}</p>
+                  <label className="text-sm font-medium text-gray-500">{t('project.location')}</label>
+                  <p className="mt-1">{project.location || t('customer.notSpecified')}</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Start Date</label>
-                  <p className="mt-1">{project.startDate ? new Date(project.startDate).toLocaleDateString() : 'Not specified'}</p>
+                  <label className="text-sm font-medium text-gray-500">{t('project.startDate')}</label>
+                  <p className="mt-1">{project.startDate ? new Date(project.startDate).toLocaleDateString() : t('customer.notSpecified')}</p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">End Date</label>
-                  <p className="mt-1">{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'Not specified'}</p>
+                  <label className="text-sm font-medium text-gray-500">{t('project.endDate')}</label>
+                  <p className="mt-1">{project.endDate ? new Date(project.endDate).toLocaleDateString() : t('customer.notSpecified')}</p>
                 </div>
 
                 {project.description && (
                   <div className="md:col-span-3">
-                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <label className="text-sm font-medium text-gray-500">{t('project.description')}</label>
                     <p className="mt-1 text-gray-700">{project.description}</p>
                   </div>
                 )}
@@ -579,35 +581,35 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-[#7A1516]" />
-              Revenue & Collection Summary
+              {t('project.revenueCollectionSummary')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">Total Invoiced to Customer</label>
+                <label className="text-sm font-medium text-gray-500">{t('project.totalInvoicedToCustomer')}</label>
                 <p className="text-2xl font-bold text-[#7A1516]">{totalInvoiced.toLocaleString('en-SA')} SAR</p>
-                <p className="text-xs text-gray-500">Sum of all approved and paid claims</p>
+                <p className="text-xs text-gray-500">{t('project.sumApprovedPaidClaims')}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">Total Paid by Customer</label>
+                <label className="text-sm font-medium text-gray-500">{t('project.totalPaidByCustomer')}</label>
                 <p className="text-2xl font-bold text-green-600">{totalPaidByCustomer.toLocaleString('en-SA')} SAR</p>
-                <p className="text-xs text-gray-500">Sum of all paid claims</p>
+                <p className="text-xs text-gray-500">{t('project.sumPaidClaims')}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">Outstanding Receivables</label>
+                <label className="text-sm font-medium text-gray-500">{t('project.outstandingReceivables')}</label>
                 <p className="text-2xl font-bold text-orange-600">{(totalInvoiced - totalPaidByCustomer).toLocaleString('en-SA')} SAR</p>
-                <p className="text-xs text-gray-500">Invoiced but not yet collected</p>
+                <p className="text-xs text-gray-500">{t('project.invoicedNotCollected')}</p>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-500">Collection Rate</label>
+                <label className="text-sm font-medium text-gray-500">{t('project.collectionRate')}</label>
                 <p className="text-2xl font-bold text-blue-600">
                   {totalInvoiced > 0 ? ((totalPaidByCustomer / totalInvoiced) * 100).toFixed(1) : '0.0'}%
                 </p>
-                <p className="text-xs text-gray-500">Payment collection efficiency</p>
+                <p className="text-xs text-gray-500">{t('project.paymentCollectionEfficiency')}</p>
               </div>
             </div>
           </CardContent>

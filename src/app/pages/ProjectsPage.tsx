@@ -207,7 +207,7 @@ export function ProjectsPage() {
   const vatBreakdown = calculateVATBreakdown();
 
   if (!canViewProjects) {
-    return <AccessDenied message="You don't have permission to view projects." />;
+    return <AccessDenied message={t('common.accessDenied')} />;
   }
 
   return (
@@ -216,7 +216,7 @@ export function ProjectsPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">{t('projects.title')}</h1>
-          <p className="text-gray-500 mt-1">Manage your construction projects</p>
+          <p className="text-gray-500 mt-1">{t('projects.subtitle')}</p>
         </div>
 
         {hasPermission('projects', 'create') && (
@@ -297,7 +297,7 @@ export function ProjectsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2 col-span-2">
-                  <Label>Customer</Label>
+                  <Label>{t('projects.customer')}</Label>
                   <CustomerSelector
                     value={newProject.customerId}
                     onChange={(value) => setNewProject({ ...newProject, customerId: value })}
@@ -503,7 +503,7 @@ export function ProjectsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="all">{t('projects.allStatus')}</SelectItem>
             <SelectItem value="planning">Planning</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="on_hold">On Hold</SelectItem>
@@ -576,7 +576,7 @@ export function ProjectsPage() {
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="text-gray-500">Progress</span>
+                      <span className="text-gray-500">{t('projects.progress')}</span>
                       <span className="font-semibold">{progress.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -588,17 +588,17 @@ export function ProjectsPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Budget</span>
+                    <span className="text-gray-500">{t('projects.budget')}</span>
                     <span className="font-semibold">{formatCurrency(project.budget)}</span>
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Spent</span>
+                    <span className="text-gray-500">{t('projects.spent')}</span>
                     <span className="font-semibold">{formatCurrency(project.spent)}</span>
                   </div>
 
                   <div className="pt-3 border-t">
-                    <div className="text-sm text-gray-500">Customer</div>
+                    <div className="text-sm text-gray-500">{t('projects.customer')}</div>
                     <div className="font-medium">{customer?.name || 'N/A'}</div>
                   </div>
 

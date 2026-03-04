@@ -6,9 +6,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Download, FileText } from 'lucide-react';
 import { dataStore, Project, VendorInvoice, CustomerInvoice, Payment } from '../data/store';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { AccessDenied } from '../components/AccessDenied';
 
 export function ReportsPage() {
+  const { t } = useLanguage();
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('reports', 'view');
   const canViewFinancial = hasPermission('reports', 'view_financial');
@@ -114,13 +116,13 @@ export function ReportsPage() {
   };
 
   if (!canView) {
-    return <AccessDenied message="You don't have permission to view reports." />;
+    return <AccessDenied message={t('common.accessDenied')} />;
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-gray-500">Loading report data...</p>
+        <p className="text-gray-500">{t('reports.loading')}</p>
       </div>
     );
   }
@@ -129,18 +131,18 @@ export function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Financial Reports & Analytics</h1>
-          <p className="text-gray-500 mt-1">Comprehensive financial insights and reporting</p>
+          <h1 className="text-3xl font-bold">{t('reports.financialTitle')}</h1>
+          <p className="text-gray-500 mt-1">{t('reports.subtitle')}</p>
         </div>
         {canExport && (
         <div className="flex gap-2">
           <Button variant="outline">
             <FileText className="w-4 h-4 mr-2" />
-            Export PDF
+            {t('reports.exportPdf')}
           </Button>
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
-            Export Excel
+            {t('reports.exportExcel')}
           </Button>
         </div>
         )}
@@ -148,34 +150,34 @@ export function ReportsPage() {
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="profitloss">P&L Statement</TabsTrigger>
-          <TabsTrigger value="balance">Balance Sheet</TabsTrigger>
-          <TabsTrigger value="cashflow">Cash Flow</TabsTrigger>
-          <TabsTrigger value="projects">Project Analysis</TabsTrigger>
+          <TabsTrigger value="overview">{t('reports.overview')}</TabsTrigger>
+          <TabsTrigger value="profitloss">{t('reports.profitLoss')}</TabsTrigger>
+          <TabsTrigger value="balance">{t('reports.balanceSheet')}</TabsTrigger>
+          <TabsTrigger value="cashflow">{t('reports.cashFlow')}</TabsTrigger>
+          <TabsTrigger value="projects">{t('reports.projectAnalysis')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Total Revenue (6M)</div>
+                <div className="text-sm text-gray-500 mb-1">{t('reports.totalRevenue6M')}</div>
                 <div className="text-2xl font-bold">{formatCurrency(periodRevenue)}</div>
-                <div className="text-sm text-green-600 mt-2">↑ 12.5% from last period</div>
+                <div className="text-sm text-green-600 mt-2">↑ 12.5% {t('reports.fromLastPeriod')}</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Total Expenses (6M)</div>
+                <div className="text-sm text-gray-500 mb-1">{t('reports.totalExpenses6M')}</div>
                 <div className="text-2xl font-bold">{formatCurrency(periodExpenses)}</div>
-                <div className="text-sm text-red-600 mt-2">↑ 8.2% from last period</div>
+                <div className="text-sm text-red-600 mt-2">↑ 8.2% {t('reports.fromLastPeriod')}</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6">
-                <div className="text-sm text-gray-500 mb-1">Net Profit (6M)</div>
+                <div className="text-sm text-gray-500 mb-1">{t('reports.netProfit6M')}</div>
                 <div className="text-2xl font-bold">{formatCurrency(periodProfit)}</div>
-                <div className="text-sm text-green-600 mt-2">↑ 18.3% from last period</div>
+                <div className="text-sm text-green-600 mt-2">↑ 18.3% {t('reports.fromLastPeriod')}</div>
               </CardContent>
             </Card>
           </div>

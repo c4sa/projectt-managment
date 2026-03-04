@@ -12,9 +12,11 @@ import { Users, Plus, Edit2, Trash2, Search, X, UserCheck, Briefcase, Mail, Phon
 import { toast } from 'sonner';
 import { Skeleton } from '../components/ui/skeleton';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { AccessDenied } from '../components/AccessDenied';
 
 export function EmployeesPage() {
+  const { t } = useLanguage();
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('employees', 'view');
   const canCreate = hasPermission('employees', 'create');
@@ -217,7 +219,7 @@ export function EmployeesPage() {
   const departmentCounts = getDepartmentCounts();
 
   if (!canView) {
-    return <AccessDenied message="You don't have permission to view employees." />;
+    return <AccessDenied message={t('common.accessDenied')} />;
   }
 
   return (
@@ -225,13 +227,13 @@ export function EmployeesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Employees</h1>
-          <p className="text-gray-500">Manage company employees and their information</p>
+          <h1 className="text-3xl font-bold">{t('employees.title')}</h1>
+          <p className="text-gray-500">{t('employees.subtitle')}</p>
         </div>
         {canCreate && (
         <Button onClick={handleAddNew} className="bg-[#7A1516] hover:bg-[#5A1012]">
           <Plus className="w-4 h-4 mr-2" />
-          Add Employee
+          {t('employees.newEmployee')}
         </Button>
         )}
       </div>
@@ -245,7 +247,7 @@ export function EmployeesPage() {
                 <Users className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Employees</p>
+                <p className="text-sm text-gray-500">{t('employees.totalEmployees')}</p>
                 <p className="text-2xl font-bold">{employees.length}</p>
               </div>
             </div>
@@ -259,7 +261,7 @@ export function EmployeesPage() {
                 <UserCheck className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Active</p>
+                <p className="text-sm text-gray-500">{t('employees.active')}</p>
                 <p className="text-2xl font-bold">{employees.filter(e => e.status === 'active').length}</p>
               </div>
             </div>
@@ -273,7 +275,7 @@ export function EmployeesPage() {
                 <Briefcase className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">On Leave</p>
+                <p className="text-sm text-gray-500">{t('employees.onLeave')}</p>
                 <p className="text-2xl font-bold">{employees.filter(e => e.status === 'on_leave').length}</p>
               </div>
             </div>
@@ -287,7 +289,7 @@ export function EmployeesPage() {
                 <Briefcase className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Departments</p>
+                <p className="text-sm text-gray-500">{t('employees.departments')}</p>
                 <p className="text-2xl font-bold">{Object.keys(departmentCounts).length}</p>
               </div>
             </div>
@@ -298,14 +300,14 @@ export function EmployeesPage() {
       {/* Search and Filter */}
       <Card>
         <CardHeader>
-          <CardTitle>Employee List</CardTitle>
+          <CardTitle>{t('employees.listTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search by name, ID, email, phone, department, or position..."
+                placeholder={t('employees.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -316,10 +318,10 @@ export function EmployeesPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-                <SelectItem value="on_leave">On Leave</SelectItem>
+                <SelectItem value="all">{t('projects.allStatus')}</SelectItem>
+                <SelectItem value="active">{t('employees.active')}</SelectItem>
+                <SelectItem value="inactive">{t('common.inactive')}</SelectItem>
+                <SelectItem value="on_leave">{t('employees.onLeave')}</SelectItem>
               </SelectContent>
             </Select>
             {(searchQuery || filterStatus !== 'all') && (
@@ -473,9 +475,9 @@ export function EmployeesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="on_leave">On Leave</SelectItem>
+                    <SelectItem value="active">{t('employees.active')}</SelectItem>
+                    <SelectItem value="inactive">{t('common.inactive')}</SelectItem>
+                    <SelectItem value="on_leave">{t('employees.onLeave')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

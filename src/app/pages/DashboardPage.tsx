@@ -171,10 +171,10 @@ export function DashboardPage() {
     : projects.filter((p: Project & { assignedManagerId?: string }) => p.assignedManagerId === user?.id);
 
   const projectStatusData = [
-    { name: 'Active', value: displayedProjects.filter(p => p.status === 'active').length, color: '#10b981' },
-    { name: 'Planning', value: displayedProjects.filter(p => p.status === 'planning').length, color: '#f59e0b' },
-    { name: 'On Hold', value: displayedProjects.filter(p => p.status === 'on_hold').length, color: '#ef4444' },
-    { name: 'Completed', value: displayedProjects.filter(p => p.status === 'completed').length, color: '#3b82f6' },
+    { name: t('projects.status.active'), value: displayedProjects.filter(p => p.status === 'active').length, color: '#10b981' },
+    { name: t('projects.status.planning'), value: displayedProjects.filter(p => p.status === 'planning').length, color: '#f59e0b' },
+    { name: t('projects.status.on_hold'), value: displayedProjects.filter(p => p.status === 'on_hold').length, color: '#ef4444' },
+    { name: t('projects.status.completed'), value: displayedProjects.filter(p => p.status === 'completed').length, color: '#3b82f6' },
   ];
 
   const projectBudgetData = displayedProjects.slice(0, 5).map(project => ({
@@ -227,7 +227,7 @@ export function DashboardPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
-          <p className="text-gray-500 mt-1">Welcome back! Here's what's happening with your projects.</p>
+          <p className="text-gray-500 mt-1">{t('dashboard.welcome')}</p>
         </div>
 
         {/* KPI skeleton */}
@@ -281,7 +281,7 @@ export function DashboardPage() {
 
         {/* Recent projects skeleton */}
         <Card>
-          <CardHeader><CardTitle>Recent Projects</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t('dashboard.recentProjects')}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-4">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -311,7 +311,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
-        <p className="text-gray-500 mt-1">Welcome back! Here's what's happening with your projects.</p>
+        <p className="text-gray-500 mt-1">{t('dashboard.welcome')}</p>
       </div>
 
       {/* KPI Cards - requires view_financial */}
@@ -348,7 +348,7 @@ export function DashboardPage() {
                 <FolderKanban className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Active Projects</p>
+                <p className="text-sm text-gray-500">{t('dashboard.activeProjects')}</p>
                 <p className="text-2xl font-bold">{displayedProjects.filter(p => p.status === 'active').length}</p>
               </div>
             </div>
@@ -362,7 +362,7 @@ export function DashboardPage() {
                 <Users className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Vendors</p>
+                <p className="text-sm text-gray-500">{t('dashboard.totalVendors')}</p>
                 <p className="text-2xl font-bold">{vendors.length}</p>
               </div>
             </div>
@@ -376,7 +376,7 @@ export function DashboardPage() {
                 <Users className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Customers</p>
+                <p className="text-sm text-gray-500">{t('dashboard.totalCustomers')}</p>
                 <p className="text-2xl font-bold">{customers.length}</p>
               </div>
             </div>
@@ -389,7 +389,7 @@ export function DashboardPage() {
         {/* Project Status Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Project Status Distribution</CardTitle>
+            <CardTitle>{t('dashboard.projectStatusDistribution')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -418,7 +418,7 @@ export function DashboardPage() {
         {canViewFinancial && (
         <Card>
           <CardHeader>
-            <CardTitle>Budget vs Actual Spend</CardTitle>
+            <CardTitle>{t('dashboard.budgetVsActual')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -428,8 +428,8 @@ export function DashboardPage() {
                 <YAxis />
                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                 <Legend />
-                <Bar dataKey="budget" fill="#7A1516" name="Budget" />
-                <Bar dataKey="spent" fill="#3b82f6" name="Spent" />
+                <Bar dataKey="budget" fill="#7A1516" name={t('common.budget')} />
+                <Bar dataKey="spent" fill="#3b82f6" name={t('common.spent')} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -440,7 +440,7 @@ export function DashboardPage() {
         {canViewFinancial && (
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Revenue & Expenses Trend</CardTitle>
+            <CardTitle>{t('dashboard.revenueExpensesTrend')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -450,8 +450,8 @@ export function DashboardPage() {
                 <YAxis />
                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                 <Legend />
-                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" />
-                <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} name="Expenses" />
+                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name={t('dashboard.revenue')} />
+                <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} name={t('dashboard.expenses')} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -462,7 +462,7 @@ export function DashboardPage() {
       {/* Recent Projects */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Projects</CardTitle>
+          <CardTitle>{t('dashboard.recentProjects')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

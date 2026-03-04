@@ -229,7 +229,7 @@ export function MainLayout() {
             {/* Language Toggle */}
             <Button variant="ghost" size="sm" onClick={toggleLanguage}>
               <Globe className="w-5 h-5" />
-              <span className="ml-2 text-sm">{language === 'en' ? 'العربية' : 'English'}</span>
+              <span className="ml-2 text-sm">{language === 'en' ? t('common.languageAr') : t('common.languageEn')}</span>
             </Button>
 
             {/* Notifications */}

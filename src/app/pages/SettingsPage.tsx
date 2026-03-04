@@ -78,34 +78,34 @@ export function SettingsPage() {
   };
 
   if (!canViewSettings) {
-    return <AccessDenied message="You don't have permission to view settings." />;
+    return <AccessDenied message={t('common.accessDenied')} />;
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">{t('nav.settings')}</h1>
-        <p className="text-gray-500 mt-1">Manage system and organization-wide settings</p>
+        <p className="text-gray-500 mt-1">{t('settings.subtitle')}</p>
       </div>
 
       <Tabs defaultValue="company">
         <TabsList>
           <TabsTrigger value="company">
             <Building2 className="w-4 h-4 mr-2" />
-            Company
+            {t('settings.company')}
           </TabsTrigger>
           <TabsTrigger value="numberSequences">
             <Hash className="w-4 h-4 mr-2" />
-            Number Sequences
+            {t('settings.numberSequences')}
           </TabsTrigger>
           <TabsTrigger value="budgetCategories">
             <FolderTree className="w-4 h-4 mr-2" />
-            Budget Categories
+            {t('settings.budgetCategories')}
           </TabsTrigger>
           {canManageUsers && (
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
-              Users
+              {t('settings.users')}
             </TabsTrigger>
           )}
           {canEditSystem && (
@@ -125,12 +125,12 @@ export function SettingsPage() {
         <TabsContent value="company" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Company Information</CardTitle>
+              <CardTitle>{t('settings.companyInfo')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4 max-w-lg">
                 <div className="space-y-2">
-                  <Label>Company Name</Label>
+                  <Label>{t('settings.companyName')}</Label>
                   <Input
                     value={company.name}
                     onChange={(e) => setCompany({ ...company, name: e.target.value })}
@@ -138,7 +138,7 @@ export function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Company Logo</Label>
+                  <Label>{t('settings.companyLogo')}</Label>
                   <div className="flex items-center gap-4">
                     {company.logoBase64 ? (
                       <img src={company.logoBase64} alt="Company Logo" className="w-16 h-16 rounded object-contain border" />
@@ -147,16 +147,16 @@ export function SettingsPage() {
                     )}
                     <div>
                       <label className="cursor-pointer">
-                        <span className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Upload Logo</span>
+                        <span className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">{t('common.uploadLogo')}</span>
                         <input type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handleLogoUpload} />
                       </label>
-                      <p className="text-xs text-gray-500 mt-1">JPG, PNG. Max 2MB</p>
+                      <p className="text-xs text-gray-500 mt-1">{t('settings.logoHint')}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Address</Label>
+                  <Label>{t('common.address')}</Label>
                   <Input
                     value={company.address}
                     onChange={(e) => setCompany({ ...company, address: e.target.value })}
@@ -165,14 +165,14 @@ export function SettingsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Phone</Label>
+                    <Label>{t('common.phone')}</Label>
                     <Input
                       value={company.phone}
                       onChange={(e) => setCompany({ ...company, phone: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Email</Label>
+                    <Label>{t('common.email')}</Label>
                     <Input
                       type="email"
                       value={company.email}
@@ -182,7 +182,7 @@ export function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>VAT Number</Label>
+                  <Label>{t('vendors.vatNumber')}</Label>
                   <Input
                     value={company.vatNumber}
                     onChange={(e) => setCompany({ ...company, vatNumber: e.target.value })}
@@ -191,7 +191,7 @@ export function SettingsPage() {
 
                 <Button onClick={handleSaveCompany} className="bg-[#7A1516] hover:bg-[#5A1012]">
                   <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                  {t('common.saveChanges')}
                 </Button>
               </div>
             </CardContent>
@@ -201,7 +201,7 @@ export function SettingsPage() {
         <TabsContent value="numberSequences" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Number Sequences</CardTitle>
+              <CardTitle>{t('settings.numberSequences')}</CardTitle>
             </CardHeader>
             <CardContent>
               <NumberSequenceSettings />
@@ -212,7 +212,7 @@ export function SettingsPage() {
         <TabsContent value="budgetCategories" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Budget Categories</CardTitle>
+              <CardTitle>{t('settings.budgetCategories')}</CardTitle>
             </CardHeader>
             <CardContent>
               <BudgetCategoriesSettings />
@@ -223,7 +223,7 @@ export function SettingsPage() {
         <TabsContent value="users" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Users Management</CardTitle>
+              <CardTitle>{t('settings.usersManagement')}</CardTitle>
             </CardHeader>
             <CardContent>
               <UsersManagement />
@@ -234,7 +234,7 @@ export function SettingsPage() {
         <TabsContent value="approvalWorkflows" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Approval Workflows</CardTitle>
+              <CardTitle>{t('settings.approvalWorkflows')}</CardTitle>
             </CardHeader>
             <CardContent>
               <ApprovalWorkflowsSettings />
@@ -245,7 +245,7 @@ export function SettingsPage() {
         <TabsContent value="permissionsMatrix" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Permissions Matrix</CardTitle>
+              <CardTitle>{t('settings.permissionsMatrix')}</CardTitle>
             </CardHeader>
             <CardContent>
               <PermissionsMatrixSettings />

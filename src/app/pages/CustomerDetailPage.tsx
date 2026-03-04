@@ -10,10 +10,12 @@ import { Label } from '../components/ui/label';
 import { ArrowLeft, Building2, Mail, Phone, MapPin, FileCheck, Edit2, Save, X, FolderOpen, FileText, DollarSign, Receipt } from 'lucide-react';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { AccessDenied } from '../components/AccessDenied';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('customers', 'view');
   const canEdit = hasPermission('customers', 'edit');
@@ -58,14 +60,14 @@ export function CustomerDetailPage() {
   }, [id]);
 
   if (!canView) {
-    return <AccessDenied message="You don't have permission to view customer details." />;
+    return <AccessDenied message={t('customer.accessDenied')} />;
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Loading...</h2>
+          <h2 className="text-2xl font-bold mb-2">{t('customer.loading')}</h2>
         </div>
       </div>
     );
@@ -75,8 +77,8 @@ export function CustomerDetailPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Customer Not Found</h2>
-          <Button onClick={() => navigate('/customers')}>Back to Customers</Button>
+          <h2 className="text-2xl font-bold mb-2">{t('customer.notFound')}</h2>
+          <Button onClick={() => navigate('/customers')}>{t('customer.backToCustomers')}</Button>
         </div>
       </div>
     );
@@ -136,12 +138,12 @@ export function CustomerDetailPage() {
             {canEdit && (
             <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
               <Save className="w-4 h-4 mr-2" />
-              Save Changes
+              {t('common.saveChanges')}
             </Button>
             )}
             <Button onClick={handleCancel} variant="outline">
               <X className="w-4 h-4 mr-2" />
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         )}
@@ -156,7 +158,7 @@ export function CustomerDetailPage() {
                 <FolderOpen className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Active Projects</p>
+                <p className="text-sm text-gray-500">{t('customer.activeProjects')}</p>
                 <p className="font-semibold text-xl">{customerProjects.length}</p>
               </div>
             </div>
@@ -170,7 +172,7 @@ export function CustomerDetailPage() {
                 <FileText className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Invoices</p>
+                <p className="text-sm text-gray-500">{t('customer.invoices')}</p>
                 <p className="font-semibold text-xl">{customerInvoices.length}</p>
               </div>
             </div>
@@ -184,7 +186,7 @@ export function CustomerDetailPage() {
                 <DollarSign className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Invoiced</p>
+                <p className="text-sm text-gray-500">{t('customer.totalInvoiced')}</p>
                 <p className="font-semibold text-lg">{totalInvoiced.toLocaleString()} SAR</p>
               </div>
             </div>
@@ -200,7 +202,7 @@ export function CustomerDetailPage() {
                 <Receipt className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Outstanding</p>
+                <p className="text-sm text-gray-500">{t('customer.outstanding')}</p>
                 <p className="font-semibold text-lg">{totalOutstanding.toLocaleString()} SAR</p>
               </div>
             </div>
@@ -211,31 +213,31 @@ export function CustomerDetailPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="projects">Projects</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="statement">Account Statement</TabsTrigger>
+          <TabsTrigger value="overview">{t('customer.overview')}</TabsTrigger>
+          <TabsTrigger value="projects">{t('customer.projects')}</TabsTrigger>
+          <TabsTrigger value="invoices">{t('customer.invoices')}</TabsTrigger>
+          <TabsTrigger value="payments">{t('customer.payments')}</TabsTrigger>
+          <TabsTrigger value="statement">{t('customer.accountStatement')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Customer Information</CardTitle>
+              <CardTitle>{t('customer.customerInfo')}</CardTitle>
             </CardHeader>
             <CardContent>
               {isEditing ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Customer Name</Label>
+                      <Label>{t('customer.customerName')}</Label>
                       <Input
                         value={editedCustomer?.name || ''}
                         onChange={(e) => setEditedCustomer({ ...editedCustomer!, name: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Customer Code</Label>
+                      <Label>{t('customer.customerCode')}</Label>
                       <Input
                         value={editedCustomer?.code || ''}
                         disabled
@@ -246,7 +248,7 @@ export function CustomerDetailPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Email</Label>
+                      <Label>{t('common.email')}</Label>
                       <Input
                         type="email"
                         value={editedCustomer?.email || ''}
@@ -264,14 +266,14 @@ export function CustomerDetailPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Contact Person</Label>
+                      <Label>{t('project.contactPerson')}</Label>
                       <Input
                         value={editedCustomer?.contactPerson || ''}
                         onChange={(e) => setEditedCustomer({ ...editedCustomer!, contactPerson: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>VAT Number</Label>
+                      <Label>{t('vendors.vatNumber')}</Label>
                       <Input
                         value={editedCustomer?.vatNumber || ''}
                         onChange={(e) => setEditedCustomer({ ...editedCustomer!, vatNumber: e.target.value })}
@@ -280,7 +282,7 @@ export function CustomerDetailPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Address</Label>
+                    <Label>{t('common.address')}</Label>
                     <Input
                       value={editedCustomer?.address || ''}
                       onChange={(e) => setEditedCustomer({ ...editedCustomer!, address: e.target.value })}
@@ -291,28 +293,28 @@ export function CustomerDetailPage() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Customer Name</label>
+                      <label className="text-sm font-medium text-gray-500">{t('customer.customerName')}</label>
                       <p className="text-lg font-semibold mt-1">{customer.name}</p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Customer Code</label>
+                      <label className="text-sm font-medium text-gray-500">{t('customer.customerCode')}</label>
                       <p className="font-mono text-blue-600 text-lg mt-1">{customer.code}</p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Contact Person</label>
-                      <p className="mt-1">{customer.contactPerson || 'Not specified'}</p>
+                      <label className="text-sm font-medium text-gray-500">{t('vendors.contactPerson')}</label>
+                      <p className="mt-1">{customer.contactPerson || t('customer.notSpecified')}</p>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-500">VAT Number</label>
-                      <p className="font-mono mt-1">{customer.vatNumber || 'Not specified'}</p>
+                      <label className="text-sm font-medium text-gray-500">{t('vendors.vatNumber')}</label>
+                      <p className="font-mono mt-1">{customer.vatNumber || t('customer.notSpecified')}</p>
                     </div>
                   </div>
 
                   <div className="border-t pt-4">
-                    <h3 className="font-semibold mb-3">Contact Information</h3>
+                    <h3 className="font-semibold mb-3">{t('customer.contactInfo')}</h3>
                     <div className="grid grid-cols-1 gap-3">
                       {customer.email && (
                         <div className="flex items-center gap-2">
@@ -349,7 +351,7 @@ export function CustomerDetailPage() {
         <TabsContent value="projects" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Projects</CardTitle>
+              <CardTitle>{t('customer.projects')}</CardTitle>
             </CardHeader>
             <CardContent>
               {customerProjects.length > 0 ? (
@@ -367,7 +369,7 @@ export function CustomerDetailPage() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <p className="text-sm text-gray-500">Budget</p>
+                            <p className="text-sm text-gray-500">{t('customer.budget')}</p>
                             <p className="font-semibold">{project.budget.toLocaleString()} SAR</p>
                           </div>
                           <Badge className={
@@ -384,7 +386,7 @@ export function CustomerDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No projects found for this customer</p>
+                <p className="text-gray-500 text-center py-8">{t('customer.noProjectsForCustomerShort')}</p>
               )}
             </CardContent>
           </Card>
@@ -393,7 +395,7 @@ export function CustomerDetailPage() {
         <TabsContent value="invoices" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Customer Invoices</CardTitle>
+              <CardTitle>{t('customer.customerInvoices')}</CardTitle>
             </CardHeader>
             <CardContent>
               {customerInvoices.length > 0 ? (
@@ -401,12 +403,12 @@ export function CustomerDetailPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left p-3">Invoice Number</th>
-                        <th className="text-left p-3">Project</th>
-                        <th className="text-left p-3">Issue Date</th>
-                        <th className="text-left p-3">Due Date</th>
-                        <th className="text-right p-3">Amount</th>
-                        <th className="text-left p-3">Status</th>
+                        <th className="text-left p-3">{t('customer.invoiceNumber')}</th>
+                        <th className="text-left p-3">{t('customer.project')}</th>
+                        <th className="text-left p-3">{t('customer.issueDate')}</th>
+                        <th className="text-left p-3">{t('customer.dueDate')}</th>
+                        <th className="text-right p-3">{t('customer.amount')}</th>
+                        <th className="text-left p-3">{t('common.status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -436,7 +438,7 @@ export function CustomerDetailPage() {
                   </table>
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No invoices found</p>
+                <p className="text-gray-500 text-center py-8">{t('customer.noInvoices')}</p>
               )}
             </CardContent>
           </Card>
@@ -445,7 +447,7 @@ export function CustomerDetailPage() {
         <TabsContent value="payments" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Payment History</CardTitle>
+              <CardTitle>{t('customer.paymentHistory')}</CardTitle>
             </CardHeader>
             <CardContent>
               {customerPayments.length > 0 ? (
@@ -453,12 +455,12 @@ export function CustomerDetailPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left p-3">Payment Number</th>
-                        <th className="text-left p-3">Project</th>
-                        <th className="text-left p-3">Payment Date</th>
-                        <th className="text-left p-3">Method</th>
-                        <th className="text-right p-3">Amount</th>
-                        <th className="text-left p-3">Reference</th>
+                        <th className="text-left p-3">{t('customer.paymentNumber')}</th>
+                        <th className="text-left p-3">{t('customer.project')}</th>
+                        <th className="text-left p-3">{t('customer.paymentDate')}</th>
+                        <th className="text-left p-3">{t('customer.method')}</th>
+                        <th className="text-right p-3">{t('customer.amount')}</th>
+                        <th className="text-left p-3">{t('customer.reference')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -479,7 +481,7 @@ export function CustomerDetailPage() {
                   </table>
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No payments recorded</p>
+                <p className="text-gray-500 text-center py-8">{t('customer.noPaymentsRecorded')}</p>
               )}
             </CardContent>
           </Card>
@@ -488,22 +490,22 @@ export function CustomerDetailPage() {
         <TabsContent value="statement" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Account Statement</CardTitle>
+              <CardTitle>{t('customer.accountStatement')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
                 {/* Summary Cards */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="border rounded-lg p-4 bg-blue-50">
-                    <p className="text-sm text-gray-600 mb-1">Total Invoiced</p>
+                    <p className="text-sm text-gray-600 mb-1">{t('customer.totalInvoiced')}</p>
                     <p className="text-2xl font-bold text-blue-600">{totalInvoiced.toLocaleString()} SAR</p>
                   </div>
                   <div className="border rounded-lg p-4 bg-green-50">
-                    <p className="text-sm text-gray-600 mb-1">Total Paid</p>
+                    <p className="text-sm text-gray-600 mb-1">{t('customer.totalPaid')}</p>
                     <p className="text-2xl font-bold text-green-600">{totalPaid.toLocaleString()} SAR</p>
                   </div>
                   <div className={`border rounded-lg p-4 ${totalOutstanding > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
-                    <p className="text-sm text-gray-600 mb-1">Outstanding Balance</p>
+                    <p className="text-sm text-gray-600 mb-1">{t('customer.outstandingBalance')}</p>
                     <p className={`text-2xl font-bold ${totalOutstanding > 0 ? 'text-red-600' : 'text-gray-600'}`}>
                       {totalOutstanding.toLocaleString()} SAR
                     </p>
@@ -512,7 +514,7 @@ export function CustomerDetailPage() {
 
                 {/* Transaction History */}
                 <div>
-                  <h3 className="font-semibold mb-4">Transaction History</h3>
+                  <h3 className="font-semibold mb-4">{t('customer.transactionHistory')}</h3>
                   <div className="space-y-2">
                     {/* Combine invoices and payments, sort by date */}
                     {[
@@ -529,7 +531,7 @@ export function CustomerDetailPage() {
                               {item.type === 'invoice' ? <FileText className="w-5 h-5" /> : <Receipt className="w-5 h-5" />}
                             </div>
                             <div>
-                              <p className="font-medium">{item.type === 'invoice' ? 'Invoice' : 'Payment'}</p>
+                              <p className="font-medium">{item.type === 'invoice' ? t('customer.invoice') : t('customer.payment')}</p>
                               <p className="text-sm text-gray-500 font-mono">{item.ref}</p>
                             </div>
                           </div>
@@ -542,7 +544,7 @@ export function CustomerDetailPage() {
                         </div>
                       ))}
                     {customerInvoices.length === 0 && customerPayments.length === 0 && (
-                      <p className="text-gray-500 text-center py-8">No transactions found</p>
+                      <p className="text-gray-500 text-center py-8">{t('customer.noTransactions')}</p>
                     )}
                   </div>
                 </div>

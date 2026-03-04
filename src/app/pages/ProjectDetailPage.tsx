@@ -19,10 +19,12 @@ import { ProjectExpensesTab } from '../components/project/ProjectExpensesTab';
 import { ProjectManpowerTab } from '../components/project/ProjectManpowerTab';
 import { ProjectIncomeTab } from '../components/project/ProjectIncomeTab';
 import { AccessDenied } from '../components/AccessDenied';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { hasPermission } = usePermissionsMatrix();
   const canViewProject = hasPermission('projects', 'view');
   const canEditProject = hasPermission('projects', 'edit');
@@ -166,7 +168,7 @@ export function ProjectDetailPage() {
   }, [canViewBudget, canViewExpenses, canViewIncome, canViewEmployees, canViewDocuments, canViewTasks, activeTab]);
 
   if (!canViewProject) {
-    return <AccessDenied message="You don't have permission to view this project." />;
+    return <AccessDenied message={t('project.accessDenied')} />;
   }
 
   if (loading) {
@@ -174,7 +176,7 @@ export function ProjectDetailPage() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7A1516] mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading project...</p>
+          <p className="text-gray-500">{t('project.loading')}</p>
         </div>
       </div>
     );
@@ -265,7 +267,7 @@ export function ProjectDetailPage() {
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
                 className={`${getStatusColor(project.status)} px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 hover:opacity-80 transition-opacity cursor-pointer`}
               >
-                {project.status.replace('_', ' ')}
+                {project.status === 'on_hold' ? t('projects.status.on_hold') : t(`projects.status.${project.status}`)}
                 <ChevronDown className="w-3 h-3" />
               </button>
               
@@ -277,28 +279,28 @@ export function ProjectDetailPage() {
                       className="w-full text-left px-3 py-2 rounded hover:bg-yellow-50 flex items-center gap-2 text-sm"
                     >
                       <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                      Planning
+                      {t('projects.status.planning')}
                     </button>
                     <button
                       onClick={() => handleStatusChange('active')}
                       className="w-full text-left px-3 py-2 rounded hover:bg-green-50 flex items-center gap-2 text-sm"
                     >
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                      Active
+                      {t('projects.status.active')}
                     </button>
                     <button
                       onClick={() => handleStatusChange('on_hold')}
                       className="w-full text-left px-3 py-2 rounded hover:bg-red-50 flex items-center gap-2 text-sm"
                     >
                       <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                      On Hold
+                      {t('projects.status.on_hold')}
                     </button>
                     <button
                       onClick={() => handleStatusChange('completed')}
                       className="w-full text-left px-3 py-2 rounded hover:bg-blue-50 flex items-center gap-2 text-sm"
                     >
                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                      Completed
+                      {t('projects.status.completed')}
                     </button>
                   </div>
                 </div>
@@ -307,7 +309,7 @@ export function ProjectDetailPage() {
             )}
             {!canEditProject && (
               <span className={`${getStatusColor(project.status)} px-3 py-1 rounded-full text-sm font-medium`}>
-                {project.status.replace('_', ' ')}
+                {project.status === 'on_hold' ? t('projects.status.on_hold') : t(`projects.status.${project.status}`)}
               </span>
             )}
           </div>
@@ -324,7 +326,7 @@ export function ProjectDetailPage() {
                 <DollarSign className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Budget</p>
+                <p className="text-sm text-gray-500">{t('common.budget')}</p>
                 <p className="font-semibold">{totalBudgeted.toLocaleString()} SAR</p>
               </div>
             </div>
@@ -338,7 +340,7 @@ export function ProjectDetailPage() {
                 <DollarSign className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Actual Spent</p>
+                <p className="text-sm text-gray-500">{t('project.totalActualSpent')}</p>
                 <p className="font-semibold">{totalActualSpent.toLocaleString()} SAR</p>
               </div>
             </div>
@@ -352,7 +354,7 @@ export function ProjectDetailPage() {
                 <Users className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Team Members</p>
+                <p className="text-sm text-gray-500">{t('project.teamMembers')}</p>
                 <p className="font-semibold">{project.teamMembers.length}</p>
               </div>
             </div>
@@ -366,7 +368,7 @@ export function ProjectDetailPage() {
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Progress</p>
+                <p className="text-sm text-gray-500">{t('projects.progress')}</p>
                 <p className="font-semibold">{progress.toFixed(1)}%</p>
               </div>
             </div>
@@ -377,14 +379,14 @@ export function ProjectDetailPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap gap-1">
-          <TabsTrigger value="information">Information</TabsTrigger>
-          {canViewBudget && <TabsTrigger value="budget">Budget</TabsTrigger>}
-          {canViewExpenses && <TabsTrigger value="expenses">Expenses</TabsTrigger>}
-          {canViewIncome && <TabsTrigger value="income">Income</TabsTrigger>}
-          {canViewEmployees && <TabsTrigger value="manpower">Manpower</TabsTrigger>}
-          {canViewDocuments && <TabsTrigger value="documents">Documents</TabsTrigger>}
-          {canViewTasks && <TabsTrigger value="tasks">Tasks</TabsTrigger>}
-          {canViewTasks && <TabsTrigger value="gantt">Gantt</TabsTrigger>}
+          <TabsTrigger value="information">{t('project.tabInfo')}</TabsTrigger>
+          {canViewBudget && <TabsTrigger value="budget">{t('project.tabBudget')}</TabsTrigger>}
+          {canViewExpenses && <TabsTrigger value="expenses">{t('project.tabExpenses')}</TabsTrigger>}
+          {canViewIncome && <TabsTrigger value="income">{t('project.tabIncome')}</TabsTrigger>}
+          {canViewEmployees && <TabsTrigger value="manpower">{t('project.tabManpower')}</TabsTrigger>}
+          {canViewDocuments && <TabsTrigger value="documents">{t('project.tabDocuments')}</TabsTrigger>}
+          {canViewTasks && <TabsTrigger value="tasks">{t('project.tabTasks')}</TabsTrigger>}
+          {canViewTasks && <TabsTrigger value="gantt">{t('project.tabGantt')}</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="information" className="mt-6">
@@ -442,10 +444,10 @@ export function ProjectDetailPage() {
               done: 'bg-green-500',
             };
             const statusLabels: Record<string, string> = {
-              todo: 'To Do',
-              in_progress: 'In Progress',
-              review: 'Review',
-              done: 'Done',
+              todo: t('tasks.todo'),
+              in_progress: t('tasks.inProgress'),
+              review: t('tasks.review'),
+              done: t('tasks.done'),
             };
             const priorityColors: Record<string, string> = {
               low: 'text-gray-500',
@@ -476,7 +478,7 @@ export function ProjectDetailPage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle>Gantt Chart</CardTitle>
+                      <CardTitle>{t('project.ganttChart')}</CardTitle>
                       <div className="flex items-center gap-4 text-sm">
                         {Object.entries(statusLabels).map(([k, v]) => (
                           <span key={k} className="flex items-center gap-1">
@@ -487,22 +489,22 @@ export function ProjectDetailPage() {
                       </div>
                     </div>
                     <p className="text-sm text-gray-500">
-                      Project timeline: {projectStart.toLocaleDateString()} – {projectEnd.toLocaleDateString()} ({totalDays} days)
+                      {t('project.timeline')}: {projectStart.toLocaleDateString()} – {projectEnd.toLocaleDateString()} ({totalDays} {t('project.days')})
                     </p>
                   </CardHeader>
                   <CardContent className="p-0">
                     {tasksWithDates.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-6">
                         <Calendar className="w-12 h-12 mb-3" />
-                        <p className="text-lg font-medium">No tasks with due dates</p>
-                        <p className="text-sm mt-1">Add tasks with due dates in the Tasks tab to see them on the Gantt chart</p>
+                        <p className="text-lg font-medium">{t('project.noTasksWithDueDates')}</p>
+                        <p className="text-sm mt-1">{t('project.addTasksHint')}</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
                         <div style={{ minWidth: `${Math.max(800, totalDays * 18 + 220)}px` }}>
                           {/* Header row */}
                           <div className="flex border-b bg-gray-50">
-                            <div className="w-56 shrink-0 px-4 py-2 text-xs font-semibold text-gray-600 border-r">Task</div>
+                            <div className="w-56 shrink-0 px-4 py-2 text-xs font-semibold text-gray-600 border-r">{t('project.task')}</div>
                             <div className="flex-1 flex">
                               {months.map((m, i) => (
                                 <div
