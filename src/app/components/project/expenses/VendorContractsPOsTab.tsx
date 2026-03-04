@@ -58,9 +58,9 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
 
-  // Filter budget items to only show those with budgeted amount > 0 and valid item name
+  // Filter budget items to show those with valid category and item name
   const availableBudgetItems = budgetItems.filter((item: any) => 
-    item.budgeted > 0 && item.name && item.name.trim() !== ''
+    item.category && item.name && item.name.trim() !== ''
   );
 
   useEffect(() => {
@@ -528,7 +528,13 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
             </Button>
           </DialogTrigger>
           )}
-          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogContent 
+            className="max-w-7xl max-h-[90vh] overflow-y-auto"
+            onPointerDownOutside={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.closest('[data-slot="select-content"]')) e.preventDefault();
+            }}
+          >
             <DialogHeader>
               <DialogTitle>{editMode ? 'Edit Purchase Order' : 'Create Purchase Order'}</DialogTitle>
             </DialogHeader>
@@ -565,8 +571,9 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                 {!differentCategoryPerItem && (
                   <div className="space-y-2">
                     <Label>Budget Item (Category - Item) *</Label>
-                    <Select 
-                      value={newPO.budgetItem} 
+                    <Select
+                      modal={false}
+                      value={newPO.budgetItem}
                       onValueChange={(value) => {
                         const selectedItem = availableBudgetItems.find(item => `${item.category}-${item.name}` === value);
                         if (selectedItem) {
@@ -634,8 +641,9 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                     {differentCategoryPerItem && (
                       <div className="col-span-4">
                         <Label className="text-xs">Budget Item</Label>
-                        <Select 
-                          value={item.budgetItem} 
+                        <Select
+                          modal={false}
+                          value={item.budgetItem}
                           onValueChange={(value) => {
                             const selectedItem = availableBudgetItems.find(budgetItem => `${budgetItem.category}-${budgetItem.name}` === value);
                             if (selectedItem) {

@@ -47,9 +47,9 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
     dueDate: '',
   });
 
-  // Filter budget items to only show those with budgeted amount > 0 and valid item name
+  // Filter budget items to show those with valid category and item name
   const availableBudgetItems = budgetItems.filter((item: any) => 
-    item.budgeted > 0 && item.name && item.name.trim() !== ''
+    item.category && item.name && item.name.trim() !== ''
   );
 
   useEffect(() => {
@@ -486,7 +486,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
           <h3 className="text-lg font-semibold">Vendor Invoices</h3>
           <p className="text-sm text-gray-500">Manage vendor invoices for this project</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen} modal={false}>
           {canCreateInvoice && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
@@ -495,7 +495,17 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
             </Button>
           </DialogTrigger>
           )}
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent 
+            className="max-w-4xl max-h-[90vh] overflow-y-auto"
+            onPointerDownOutside={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.closest('[data-slot="select-content"]')) e.preventDefault();
+            }}
+            onInteractOutside={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.closest('[data-slot="select-content"]')) e.preventDefault();
+            }}
+          >
             <DialogHeader>
               <DialogTitle>Create Vendor Invoice</DialogTitle>
             </DialogHeader>
@@ -549,6 +559,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
               <div className="space-y-2">
                 <Label>VAT Treatment *</Label>
                 <Select 
+                  modal={false}
                   value={newInvoice.vatTreatment} 
                   onValueChange={(value) => setNewInvoice({ ...newInvoice, vatTreatment: value as 'not_applicable' | 'inclusive' | 'exclusive' })}
                 >
@@ -591,12 +602,14 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                       <div className="col-span-6">
                         <Label className="text-xs">Budget Item (Category - Item) *</Label>
                         <Select 
+                          modal={false}
                           value={item.budgetItem} 
                           onValueChange={(value) => {
                             const selectedItem = availableBudgetItems.find(budgetItem => `${budgetItem.category}-${budgetItem.name}` === value);
                             if (selectedItem) {
-                              handleItemChange(index, 'budgetItem', value);
-                              handleItemChange(index, 'budgetCategory', selectedItem.category as BudgetCategory);
+                              const items = [...newInvoice.items];
+                              items[index] = { ...items[index], budgetItem: value, budgetCategory: selectedItem.category as BudgetCategory };
+                              setNewInvoice({ ...newInvoice, items });
                             }
                           }}
                         >

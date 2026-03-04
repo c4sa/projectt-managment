@@ -200,7 +200,8 @@ export function CustomersPage() {
                 </Button>
                 <Button 
                   onClick={handleCreateCustomer}
-                  className="bg-[#A5747C] hover:bg-[#8B6268]"
+                  className="bg-[#7A1516] hover:bg-[#5A1012]"
+                  disabled={!newCustomer.name.trim() || !newCustomer.email.trim() || !newCustomer.phone.trim()}
                 >
                   {t('customers.addCustomer')}
                 </Button>

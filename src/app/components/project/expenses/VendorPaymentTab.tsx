@@ -307,7 +307,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
     }
   };
 
-  const handleCreatePayment = () => {
+  const handleCreatePayment = async () => {
     const payment = {
       projectId,
       vendorId: newPayment.vendorId,
@@ -328,8 +328,8 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
       createdByName: currentUser.name,
     };
 
-    dataStore.addPayment(payment);
-    loadData();
+    await dataStore.addPayment(payment);
+    await loadData();
     handleCloseDialog();
   };
 
