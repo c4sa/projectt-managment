@@ -9,6 +9,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Plus, TrendingUp, TrendingDown, Info, Pencil, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface Props {
@@ -188,7 +189,28 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
     setBudgetItems(data);
   };
 
+  // Get the VAT-exclusive contract value (budget items are VAT exclusive per the note)
+  const getMaxBudgetAllowed = (): number | null => {
+    if (!project?.contractValue || project.contractValue <= 0) return null;
+    const cv = project.contractValue;
+    if (project.vatStatus === 'not_applicable') return cv;
+    if (project.vatStatus === 'inclusive') return cv / 1.15;
+    if (project.vatStatus === 'exclusive') return cv;
+    return cv;
+  };
+
+  const maxBudgetAllowed = getMaxBudgetAllowed();
+
   const handleCreateItem = async () => {
+    const currentTotal = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+    const newTotal = currentTotal + newItem.budgeted;
+    if (maxBudgetAllowed !== null && newTotal > maxBudgetAllowed) {
+      toast.error(
+        `Total budget cannot exceed contract value (${maxBudgetAllowed.toLocaleString('en-SA')} SAR). ` +
+        `Current total: ${currentTotal.toLocaleString('en-SA')} SAR. Maximum you can add: ${(maxBudgetAllowed - currentTotal).toLocaleString('en-SA')} SAR.`
+      );
+      return;
+    }
     await dataStore.addBudgetItem({
       projectId,
       category: newItem.category,
@@ -214,6 +236,16 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
 
   const handleUpdateItem = async () => {
     if (editingItem) {
+      const currentTotal = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+      const totalExcludingThis = currentTotal - editingItem.budgeted;
+      const newTotal = totalExcludingThis + (editingItem.budgeted || 0);
+      if (maxBudgetAllowed !== null && newTotal > maxBudgetAllowed) {
+        toast.error(
+          `Total budget cannot exceed contract value (${maxBudgetAllowed.toLocaleString('en-SA')} SAR). ` +
+          `Other items total: ${totalExcludingThis.toLocaleString('en-SA')} SAR. Maximum for this item: ${(maxBudgetAllowed - totalExcludingThis).toLocaleString('en-SA')} SAR.`
+        );
+        return;
+      }
       await dataStore.updateBudgetItem(editingItem.id, {
         category: editingItem.category,
         name: editingItem.name,
@@ -315,6 +347,11 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
                   onChange={(e) => setNewItem({ ...newItem, budgeted: parseFloat(e.target.value) || 0 })}
                   placeholder="0"
                 />
+                {maxBudgetAllowed !== null && (
+                  <p className="text-xs text-gray-500">
+                    Contract value limit: {maxBudgetAllowed.toLocaleString('en-SA')} SAR. Current total: {totalBudgeted.toLocaleString('en-SA')} SAR. Max you can add: {(maxBudgetAllowed - totalBudgeted).toLocaleString('en-SA')} SAR.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -324,7 +361,11 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
                 <Button 
                   onClick={handleCreateItem} 
                   className="bg-[#7A1516] hover:bg-[#5A1012]"
-                  disabled={!newItem.name.trim() || newItem.budgeted <= 0}
+                  disabled={
+                    !newItem.name.trim() ||
+                    newItem.budgeted <= 0 ||
+                    (maxBudgetAllowed !== null && totalBudgeted + newItem.budgeted > maxBudgetAllowed)
+                  }
                 >
                   Add Item
                 </Button>
@@ -373,6 +414,11 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
                   onChange={(e) => setEditingItem({ ...editingItem!, budgeted: parseFloat(e.target.value) || 0 })}
                   placeholder="0"
                 />
+                {maxBudgetAllowed !== null && editingItem && (
+                  <p className="text-xs text-gray-500">
+                    Contract value limit: {maxBudgetAllowed.toLocaleString('en-SA')} SAR. Other items total: {(totalBudgeted - editingItem.budgeted).toLocaleString('en-SA')} SAR. Max for this item: {(maxBudgetAllowed - (totalBudgeted - editingItem.budgeted)).toLocaleString('en-SA')} SAR.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -382,7 +428,11 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
                 <Button 
                   onClick={handleUpdateItem} 
                   className="bg-[#7A1516] hover:bg-[#5A1012]"
-                  disabled={!editingItem?.name?.trim() || (editingItem?.budgeted || 0) <= 0}
+                  disabled={
+                    !editingItem?.name?.trim() ||
+                    (editingItem?.budgeted || 0) <= 0 ||
+                    (maxBudgetAllowed !== null && editingItem !== null && (totalBudgeted - editingItem.budgeted + (editingItem.budgeted || 0)) > maxBudgetAllowed)
+                  }
                 >
                   Update Item
                 </Button>

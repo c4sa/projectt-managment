@@ -684,14 +684,14 @@ class DataStore {
     if (!item) throw new Error('Budget item not found');
 
     const itemIdentifier = `${item.category}-${item.name}`;
+    const projectId = item.projectId;
 
-    const allPOs: PurchaseOrder[] = await this.getPurchaseOrders();
-    const referencedInPO = allPOs.some((po) => {
-      if (po.budgetCategory === item.category) return true;
+    // Only check POs from the same project; block only when PO explicitly references this specific budget item
+    const projectPOs: PurchaseOrder[] = await this.getPurchaseOrders(projectId);
+    const referencedInPO = projectPOs.some((po) => {
+      if (po.budgetItem === itemIdentifier) return true;
       if (po.items && Array.isArray(po.items)) {
-        return po.items.some((li: any) =>
-          li.budgetCategory === item.category || li.budgetItem === itemIdentifier
-        );
+        return po.items.some((li: any) => li.budgetItem === itemIdentifier);
       }
       return false;
     });
@@ -699,13 +699,12 @@ class DataStore {
       throw new Error(`Cannot delete budget item "${item.name}" because it is referenced by one or more Purchase Orders.`);
     }
 
+    // Only check invoices from the same project; block only when invoice explicitly references this specific budget item
     const allInvoices: VendorInvoice[] = await this.getVendorInvoices();
-    const referencedInInvoice = allInvoices.some((inv) => {
-      if (inv.budgetCategory === item.category) return true;
+    const projectInvoices = allInvoices.filter((inv) => inv.projectId === projectId);
+    const referencedInInvoice = projectInvoices.some((inv) => {
       if (inv.items && Array.isArray(inv.items)) {
-        return inv.items.some((li: any) =>
-          li.budgetCategory === item.category || li.budgetItem === itemIdentifier
-        );
+        return inv.items.some((li: any) => li.budgetItem === itemIdentifier);
       }
       return false;
     });
@@ -713,8 +712,9 @@ class DataStore {
       throw new Error(`Cannot delete budget item "${item.name}" because it is referenced by one or more Invoices.`);
     }
 
-    const allPayments: Payment[] = await this.getPayments();
-    const referencedInPayment = allPayments.some((p: any) => p.budgetCategory === item.category);
+    // Only check payments from the same project; payments use budgetCategory - check if any payment explicitly links to this item
+    const projectPayments: Payment[] = await this.getPayments(projectId);
+    const referencedInPayment = projectPayments.some((p: any) => p.budgetItem === itemIdentifier);
     if (referencedInPayment) {
       throw new Error(`Cannot delete budget item "${item.name}" because it is referenced by one or more Payments.`);
     }
