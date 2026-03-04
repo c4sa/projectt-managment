@@ -18,12 +18,15 @@ import { previewNextNumber } from '../utils/numberGenerator';
 import { CustomerSelector } from '../components/CustomerSelector';
 import { StatusDropdown } from '../components/StatusDropdown';
 import { Skeleton } from '../components/ui/skeleton';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function ProjectsPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasPermission } = usePermissionsMatrix();
+  const canViewProjects = hasPermission('projects', 'view');
+  const canViewAllProjects = hasPermission('projects', 'view_all');
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsWithCalculations, setProjectsWithCalculations] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -85,7 +88,11 @@ export function ProjectsPage() {
     }
   }, [dialogOpen]);
 
-  const filteredProjects = projectsWithCalculations.filter((project) => {
+  const scopeProjects = canViewAllProjects
+    ? projectsWithCalculations
+    : projectsWithCalculations.filter((p: Project & { assignedManagerId?: string }) => p.assignedManagerId === user?.id);
+
+  const filteredProjects = scopeProjects.filter((project) => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
@@ -198,6 +205,10 @@ export function ProjectsPage() {
   };
 
   const vatBreakdown = calculateVATBreakdown();
+
+  if (!canViewProjects) {
+    return <AccessDenied message="You don't have permission to view projects." />;
+  }
 
   return (
     <div className="space-y-6">
@@ -504,7 +515,7 @@ export function ProjectsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {(['planning', 'active', 'on_hold', 'completed'] as ProjectStatus[]).map(status => {
-          const count = projectsWithCalculations.filter(p => p.status === status).length;
+          const count = scopeProjects.filter(p => p.status === status).length;
           return (
             <Card key={status} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter(status)}>
               <CardContent className="p-4">

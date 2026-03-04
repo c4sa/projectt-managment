@@ -11,11 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../components/ui/badge';
 import { Plus, Search, UserPlus, Mail, Pencil, Trash2, ShieldCheck, ShieldOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
 
 export function UsersPage() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissionsMatrix();
+  const canManageUsers = hasPermission('settings', 'manage_users');
   const [users, setUsers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -198,15 +202,8 @@ export function UsersPage() {
     }
   };
 
-  if (user?.role !== 'admin') {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-500">Only administrators can manage users</p>
-        </div>
-      </div>
-    );
+  if (!canManageUsers) {
+    return <AccessDenied message="You don't have permission to manage users." />;
   }
 
   return (

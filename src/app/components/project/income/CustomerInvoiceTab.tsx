@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../../ui/textarea';
 import { Plus, FileText, DollarSign, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Badge } from '../../ui/badge';
+import { usePermissionsMatrix } from '../../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
@@ -16,6 +17,10 @@ interface Props {
 }
 
 export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
+  const { hasPermission } = usePermissionsMatrix();
+  const canCreateInvoice = hasPermission('customer_invoices', 'create');
+  const canIssueInvoice = hasPermission('customer_invoices', 'issue');
+  const canCreatePayment = hasPermission('payments', 'create');
   const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -232,12 +237,14 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
           <p className="text-sm text-gray-500">Manage progress billing and customer invoices</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {canCreateInvoice && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Plus className="w-4 h-4 mr-2" />
               New Invoice
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Customer Invoice</DialogTitle>
@@ -382,6 +389,7 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
+                {canCreateInvoice && (
                 <Button
                   onClick={handleCreateInvoice}
                   className="bg-[#7A1516] hover:bg-[#5A1012]"
@@ -389,6 +397,7 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
                 >
                   Create Invoice
                 </Button>
+                )}
               </div>
             </div>
           </DialogContent>
@@ -438,7 +447,7 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
                       <td className="text-center py-3 px-4">{getStatusBadge(invoice)}</td>
                       <td className="text-center py-3 px-4">
                         <div className="flex items-center justify-center gap-2">
-                          {invoice.status === 'draft' && (
+                          {canIssueInvoice && invoice.status === 'draft' && (
                             <Button
                               size="sm"
                               onClick={() => handleUpdateStatus(invoice.id, 'sent')}
@@ -447,7 +456,7 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
                               Send
                             </Button>
                           )}
-                          {outstanding > 0 && invoice.status !== 'draft' && (
+                          {canCreatePayment && outstanding > 0 && invoice.status !== 'draft' && (
                             <Button
                               size="sm"
                               onClick={() => handleRequestPayment(invoice)}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { Button } from '../ui/button';
 import {
@@ -32,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { Badge } from '../ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from '../ui/sheet';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProfileSettingsDialog } from '../dialogs/ProfileSettingsDialog';
@@ -41,6 +43,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   adminOnly?: boolean;
+  permission?: { module: string; action: string };
 }
 
 export function MainLayout() {
@@ -48,10 +51,37 @@ export function MainLayout() {
   const location = useLocation();
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { hasPermission } = usePermissionsMatrix();
   const { notifications, unreadCount, markAsRead } = useNotifications();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(() => {
+    try {
+      const stored = localStorage.getItem('core_code_profile');
+      if (stored) {
+        const p = JSON.parse(stored);
+        return p.photoBase64 || null;
+      }
+    } catch {}
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (!profileDialogOpen) {
+      try {
+        const stored = localStorage.getItem('core_code_profile');
+        if (stored) {
+          const p = JSON.parse(stored);
+          setProfilePhoto(p.photoBase64 || null);
+        } else {
+          setProfilePhoto(null);
+        }
+      } catch {
+        setProfilePhoto(null);
+      }
+    }
+  }, [profileDialogOpen]);
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -60,16 +90,20 @@ export function MainLayout() {
   }, [isLoading, isAuthenticated, navigate, location.pathname]);
 
   const navItems: NavItem[] = [
-    { path: '/', label: t('nav.dashboard'), icon: <LayoutDashboard className="w-5 h-5" /> },
-    { path: '/projects', label: t('nav.projects'), icon: <FolderKanban className="w-5 h-5" /> },
-    { path: '/vendors', label: t('nav.vendors'), icon: <Users className="w-5 h-5" /> },
-    { path: '/customers', label: t('nav.customers'), icon: <UserCircle className="w-5 h-5" /> },
-    { path: '/employees', label: t('nav.employees'), icon: <Users className="w-5 h-5" /> },
-    { path: '/reports', label: t('nav.reports'), icon: <BarChart3 className="w-5 h-5" /> },
-    { path: '/settings', label: t('nav.settings'), icon: <Settings className="w-5 h-5" /> },
+    { path: '/', label: t('nav.dashboard'), icon: <LayoutDashboard className="w-5 h-5" />, permission: { module: 'dashboard', action: 'view' } },
+    { path: '/projects', label: t('nav.projects'), icon: <FolderKanban className="w-5 h-5" />, permission: { module: 'projects', action: 'view' } },
+    { path: '/vendors', label: t('nav.vendors'), icon: <Users className="w-5 h-5" />, permission: { module: 'vendors', action: 'view' } },
+    { path: '/customers', label: t('nav.customers'), icon: <UserCircle className="w-5 h-5" />, permission: { module: 'customers', action: 'view' } },
+    { path: '/employees', label: t('nav.employees'), icon: <Users className="w-5 h-5" />, permission: { module: 'employees', action: 'view' } },
+    { path: '/reports', label: t('nav.reports'), icon: <BarChart3 className="w-5 h-5" />, permission: { module: 'reports', action: 'view' } },
+    { path: '/settings', label: t('nav.settings'), icon: <Settings className="w-5 h-5" />, permission: { module: 'settings', action: 'view' } },
   ];
 
-  const filteredNavItems = navItems.filter(item => !item.adminOnly || user?.role === 'admin');
+  const filteredNavItems = navItems.filter(item => {
+    if (item.adminOnly && user?.role !== 'admin') return false;
+    if (item.permission && !hasPermission(item.permission.module, item.permission.action)) return false;
+    return true;
+  });
 
   const handleLogout = () => {
     logout();
@@ -243,9 +277,12 @@ export function MainLayout() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-[#7A1516] text-white flex items-center justify-center">
-                    {user?.name?.charAt(0) || 'U'}
-                  </div>
+                  <Avatar className="w-8 h-8">
+                    {profilePhoto && <AvatarImage src={profilePhoto} alt={user?.name} />}
+                    <AvatarFallback className="bg-[#7A1516] text-white text-sm font-medium">
+                      {user?.name?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
                   <span className="hidden md:block text-sm">{user?.name}</span>
                 </Button>
               </DropdownMenuTrigger>

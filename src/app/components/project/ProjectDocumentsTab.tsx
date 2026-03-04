@@ -547,9 +547,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                         <Eye className="w-4 h-4" />
                       </Button>
                     )}
+                    {hasPermission('documents', 'download') && (
                     <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                       <Download className="w-4 h-4" />
                     </Button>
+                    )}
                     {hasPermission('documents', 'delete') && (
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(doc)}>
                       <Trash2 className="w-4 h-4 text-red-600" />
@@ -630,9 +632,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                             <Eye className="w-4 h-4" />
                           </Button>
                         )}
+                        {hasPermission('documents', 'download') && (
                         <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                           <Download className="w-4 h-4" />
                         </Button>
+                        )}
                         {hasPermission('documents', 'delete') && (
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(doc)}>
                           <Trash2 className="w-4 h-4 text-red-600" />
@@ -752,10 +756,12 @@ export function ProjectDocumentsTab({ projectId }: Props) {
             <DialogTitle className="flex items-center justify-between">
               <span className="truncate pr-4">{selectedDoc?.name}</span>
               <div className="flex items-center gap-2">
+                {hasPermission('documents', 'download') && (
                 <Button variant="outline" size="sm" onClick={() => selectedDoc && window.open(selectedDoc.fileUrl, '_blank')}>
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>
+                )}
                 <Button variant="ghost" size="icon" onClick={() => setPreviewOpen(false)} className="h-8 w-8" aria-label="Close">
                   <X className="w-4 h-4" />
                 </Button>
@@ -781,6 +787,7 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500">Preview not available for this file type</p>
+                    {hasPermission('documents', 'download') && (
                     <Button
                       onClick={() => window.open(selectedDoc.fileUrl, '_blank')}
                       className="mt-4 bg-[#7A1516] hover:bg-[#5A1012]"
@@ -788,6 +795,7 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                       <Download className="w-4 h-4 mr-2" />
                       Download to View
                     </Button>
+                    )}
                   </div>
                 )}
               </>

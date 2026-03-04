@@ -154,10 +154,17 @@ export default async function handler(req, res) {
     const appRole = customRoleId ? 'employee' : (validRoles.includes(role) ? role : 'employee');
 
     try {
+      // Redirect invited users to /set-password so they must set a password before using the app.
+      // Without redirectTo, Supabase uses the default Site URL and users are logged in directly via magic link.
+      // Set SITE_URL or VITE_SITE_URL to your frontend origin (e.g. https://app.example.com or http://localhost:5173).
+      // The /set-password URL must also be in Supabase Dashboard → Auth → URL Configuration → Redirect URLs.
+      const siteUrl = process.env.SITE_URL || process.env.VITE_SITE_URL || '';
+      const redirectTo = siteUrl ? `${siteUrl.replace(/\/$/, '')}/set-password` : undefined;
+      const inviteOptions = { data: { name } };
+      if (redirectTo) inviteOptions.redirectTo = redirectTo;
+
       // Create the auth user and send the invitation email via Supabase
-      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-        data: { name },
-      });
+      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, inviteOptions);
       if (inviteError) {
         return res.status(400).json({ success: false, error: inviteError.message });
       }

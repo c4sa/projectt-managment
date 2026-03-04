@@ -10,9 +10,14 @@ import { Badge } from '../components/ui/badge';
 import { Plus, Search, UserCircle } from 'lucide-react';
 import { previewNextNumber } from '../utils/numberGenerator';
 import { Skeleton } from '../components/ui/skeleton';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function CustomersPage() {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsMatrix();
+  const canView = hasPermission('customers', 'view');
+  const canCreate = hasPermission('customers', 'create');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,6 +88,10 @@ export function CustomersPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  if (!canView) {
+    return <AccessDenied message="You don't have permission to view customers." />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -92,12 +101,14 @@ export function CustomersPage() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {canCreate && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Customer</DialogTitle>
@@ -186,7 +197,7 @@ export function CustomersPage() {
                   Cancel
                 </Button>
                 <Button 
-                  onClick={handleCreateCustomer} 
+                  onClick={handleCreateCustomer}
                   className="bg-[#A5747C] hover:bg-[#8B6268]"
                 >
                   Add Customer

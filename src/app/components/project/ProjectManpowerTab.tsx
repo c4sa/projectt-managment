@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Users, Plus, Edit2, Trash2, Search, X, UserCheck, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
@@ -41,6 +42,10 @@ const roleColors: Record<ManpowerRole, string> = {
 };
 
 export function ProjectManpowerTab({ projectId }: Props) {
+  const { hasPermission } = usePermissionsMatrix();
+  const canCreateEmployee = hasPermission('employees', 'create');
+  const canEditEmployee = hasPermission('employees', 'edit');
+  const canDeleteEmployee = hasPermission('employees', 'delete');
   const [members, setMembers] = useState<ManpowerMember[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -197,10 +202,12 @@ export function ProjectManpowerTab({ projectId }: Props) {
           <h3 className="text-lg font-semibold">Project Manpower</h3>
           <p className="text-sm text-gray-500">Manage team members assigned to this project</p>
         </div>
+        {canCreateEmployee && (
         <Button onClick={handleAddNew} className="bg-[#7A1516] hover:bg-[#5A1012]">
           <Plus className="w-4 h-4 mr-2" />
           Add Team Member
         </Button>
+        )}
       </div>
 
       {/* Summary Card */}
@@ -351,9 +358,12 @@ export function ProjectManpowerTab({ projectId }: Props) {
                       )}
                     </div>
                     <div className="flex gap-2 ml-4">
+                      {canEditEmployee && (
                       <Button variant="outline" size="sm" onClick={() => handleEdit(member)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
+                      )}
+                      {canDeleteEmployee && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -362,6 +372,7 @@ export function ProjectManpowerTab({ projectId }: Props) {
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -508,9 +519,16 @@ export function ProjectManpowerTab({ projectId }: Props) {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
+            {editingMember && canEditEmployee && (
             <Button onClick={handleSave} className="bg-[#7A1516] hover:bg-[#5A1012]">
-              {editingMember ? 'Update' : 'Add'} Member
+              Update Member
             </Button>
+            )}
+            {!editingMember && canCreateEmployee && (
+            <Button onClick={handleSave} className="bg-[#7A1516] hover:bg-[#5A1012]">
+              Add Member
+            </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

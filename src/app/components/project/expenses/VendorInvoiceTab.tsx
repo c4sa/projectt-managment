@@ -10,6 +10,7 @@ import { Textarea } from '../../ui/textarea';
 import { Plus, Eye, FileText, Calendar, DollarSign, Upload, X, Paperclip, Pencil, Trash2, Printer } from 'lucide-react';
 import { VendorSelector } from '../../VendorSelector';
 import { useAuth } from '../../../contexts/AuthContext';
+import { usePermissionsMatrix } from '../../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
@@ -18,6 +19,13 @@ interface Props {
 
 export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
   const { user } = useAuth();
+  const { hasPermission } = usePermissionsMatrix();
+  const canCreateInvoice = hasPermission('vendor_invoices', 'create');
+  const canEditInvoice = hasPermission('vendor_invoices', 'edit');
+  const canDeleteInvoice = hasPermission('vendor_invoices', 'delete');
+  const canApproveInvoice = hasPermission('vendor_invoices', 'approve');
+  const canRejectInvoice = hasPermission('vendor_invoices', 'reject');
+  const canCreatePayment = hasPermission('payments', 'create');
   const [invoices, setInvoices] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -455,10 +463,10 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
 
   const isAdmin = user?.role === 'admin';
   const canSendForApproval = !isAdmin && selectedInvoice?.status === 'pending';
-  const canApproveOrReject = isAdmin && (selectedInvoice?.status === 'pending' || selectedInvoice?.status === 'pending_approval');
-  const canEdit = selectedInvoice?.status === 'pending' || (isAdmin && selectedInvoice?.status === 'approved');
+  const canApproveOrReject = (canApproveInvoice || canRejectInvoice) && isAdmin && (selectedInvoice?.status === 'pending' || selectedInvoice?.status === 'pending_approval');
+  const canEdit = canEditInvoice && (selectedInvoice?.status === 'pending' || (isAdmin && selectedInvoice?.status === 'approved'));
   const isApproved = selectedInvoice?.status === 'approved';
-  const canRequestPayment = selectedInvoice?.status && !['draft', 'pending', 'pending_approval', 'rejected', 'paid'].includes(selectedInvoice.status);
+  const canRequestPayment = canCreatePayment && selectedInvoice?.status && !['draft', 'pending', 'pending_approval', 'rejected', 'paid'].includes(selectedInvoice.status);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -479,12 +487,14 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
           <p className="text-sm text-gray-500">Manage vendor invoices for this project</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {canCreateInvoice && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Plus className="w-4 h-4 mr-2" />
               Create Invoice
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Vendor Invoice</DialogTitle>
@@ -725,13 +735,24 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
+                {editMode && canEditInvoice && (
                 <Button 
-                  onClick={editMode ? handleEditInvoice : handleCreateInvoice} 
+                  onClick={handleEditInvoice} 
                   className="bg-[#7A1516] hover:bg-[#5A1012]"
                   disabled={!newInvoice.vendorId || !newInvoice.invoiceNumber || !newInvoice.description || newInvoice.items.some(i => !i.description)}
                 >
-                  {editMode ? 'Save Changes' : 'Create Invoice'}
+                  Save Changes
                 </Button>
+                )}
+                {!editMode && canCreateInvoice && (
+                <Button 
+                  onClick={handleCreateInvoice} 
+                  className="bg-[#7A1516] hover:bg-[#5A1012]"
+                  disabled={!newInvoice.vendorId || !newInvoice.invoiceNumber || !newInvoice.description || newInvoice.items.some(i => !i.description)}
+                >
+                  Create Invoice
+                </Button>
+                )}
               </div>
             </div>
           </DialogContent>
@@ -842,7 +863,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        {(invoice.status === 'pending' || (isAdmin && invoice.status === 'approved')) && (
+                        {canEditInvoice && (invoice.status === 'pending' || (isAdmin && invoice.status === 'approved')) && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -884,7 +905,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                         >
                           <Printer className="w-4 h-4" />
                         </Button>
-                        {(invoice.status === 'pending' || isAdmin) && (
+                        {canDeleteInvoice && (invoice.status === 'pending' || isAdmin) && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -1171,6 +1192,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                 )}
                 {canApproveOrReject && (
                   <>
+                    {canApproveInvoice && (
                     <Button 
                       className="bg-green-500 hover:bg-green-600 text-white"
                       onClick={handleApproveInvoice}
@@ -1178,6 +1200,8 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                     >
                       Approve Invoice
                     </Button>
+                    )}
+                    {canRejectInvoice && (
                     <Button 
                       className="bg-red-500 hover:bg-red-600 text-white"
                       onClick={handleRejectInvoice}
@@ -1185,6 +1209,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                     >
                       Reject Invoice
                     </Button>
+                    )}
                   </>
                 )}
                 {canEdit && (

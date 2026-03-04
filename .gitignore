@@ -6,6 +6,7 @@ package-lock.json
 .vscode/
 
 .env.local
+.env.vercel.check
 
 Projex/
 documents/

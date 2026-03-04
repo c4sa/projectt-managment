@@ -24,10 +24,15 @@ import {
   Info
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsMatrix();
+  const canView = hasPermission('vendors', 'view');
+  const canEdit = hasPermission('vendors', 'edit');
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [invoices, setInvoices] = useState<VendorInvoice[]>([]);
@@ -74,6 +79,10 @@ export function VendorDetailPage() {
     setEditDialogOpen(false);
     toast.success('Vendor updated successfully');
   };
+
+  if (!canView) {
+    return <AccessDenied message="You don't have permission to view vendor details." />;
+  }
 
   if (loading) {
     return (
@@ -146,12 +155,14 @@ export function VendorDetailPage() {
         </div>
 
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          {canEdit && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Edit className="w-4 h-4 mr-2" />
               Edit Vendor
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Vendor</DialogTitle>
@@ -229,10 +240,12 @@ export function VendorDetailPage() {
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                   Cancel
                 </Button>
+                {canEdit && (
                 <Button onClick={handleUpdateVendor} className="bg-[#7A1516] hover:bg-[#5A1012]">
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes
                 </Button>
+                )}
               </div>
             </div>
           </DialogContent>

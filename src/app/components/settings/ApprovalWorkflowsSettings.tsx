@@ -106,25 +106,33 @@ export function ApprovalWorkflowsSettings() {
       try {
         const data = (await dataStore.getApprovalWorkflows()) ?? [];
         if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map((w: any) => ({
-            id: w.id,
-            type: w.type,
-            name: w.name,
-            description: w.description || '',
-            enabled: w.isActive !== false,
-            levels: Array.isArray(w.levels) && w.levels.length > 0
-              ? w.levels.map((l: any) => ({
-                  level: l.level ?? 1,
-                  name: l.name ?? '',
-                  roles: l.roles ?? [],
-                  approvers: l.approvers ?? [],
-                  amountThreshold: l.amountThreshold ?? 0,
-                  required: l.required !== false,
-                }))
-              : [],
-            autoApprovalThreshold: w.autoApprovalThreshold ?? 0,
-            escalationTimeout: w.escalationTimeoutHours ?? 24,
-          }));
+          const seen = new Set<string>();
+          const mapped = data
+            .filter((w: any) => {
+              const type = w.type || w.name;
+              if (seen.has(type)) return false;
+              seen.add(type);
+              return true;
+            })
+            .map((w: any) => ({
+              id: w.id,
+              type: w.type,
+              name: w.name,
+              description: w.description || '',
+              enabled: w.isActive !== false,
+              levels: Array.isArray(w.levels) && w.levels.length > 0
+                ? w.levels.map((l: any) => ({
+                    level: l.level ?? 1,
+                    name: l.name ?? '',
+                    roles: l.roles ?? [],
+                    approvers: l.approvers ?? [],
+                    amountThreshold: l.amountThreshold ?? 0,
+                    required: l.required !== false,
+                  }))
+                : [],
+              autoApprovalThreshold: w.autoApprovalThreshold ?? 0,
+              escalationTimeout: w.escalationTimeoutHours ?? 24,
+            }));
           setWorkflows(mapped);
           if (mapped.length > 0 && !selectedWorkflow) setSelectedWorkflow(mapped[0]);
         } else {
@@ -149,7 +157,10 @@ export function ApprovalWorkflowsSettings() {
 
   const seedDefaults = async () => {
     try {
+      const existing = (await dataStore.getApprovalWorkflows()) ?? [];
+      const existingTypes = new Set((existing as any[]).map((w) => w.type));
       for (const wf of DEFAULT_WORKFLOWS) {
+        if (existingTypes.has(wf.type)) continue;
         await dataStore.addApprovalWorkflow({
           type: wf.type,
           name: wf.name,
@@ -160,6 +171,7 @@ export function ApprovalWorkflowsSettings() {
           autoApprovalThreshold: wf.autoApprovalThreshold,
           escalationTimeoutHours: wf.escalationTimeout,
         });
+        existingTypes.add(wf.type);
       }
       const data = (await dataStore.getApprovalWorkflows()) ?? [];
       const mapped = data.map((w: any) => ({

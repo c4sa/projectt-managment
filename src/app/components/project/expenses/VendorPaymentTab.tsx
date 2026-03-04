@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../../ui/textarea';
 import { Plus, Eye, FileText, Calendar, DollarSign, TrendingUp, TrendingDown, Info, CheckCircle, XCircle, Clock, Edit, Printer, Pencil, Trash2 } from 'lucide-react';
 import { VendorSelector } from '../../VendorSelector';
+import { useAuth } from '../../../contexts/AuthContext';
+import { usePermissionsMatrix } from '../../../contexts/PermissionsMatrixContext';
 
 interface LineItemPayment {
   description: string;
@@ -33,14 +35,15 @@ interface Props {
   onDataUsed: () => void;
 }
 
-// Mock current user - in production, this would come from auth context
-const currentUser = {
-  id: '1',
-  name: 'Admin User',
-  role: 'admin' as const, // Change to 'user' to test regular user permissions
-};
-
 export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props) {
+  const { user } = useAuth();
+  const currentUser = user ? { id: user.id, name: user.name ?? '', role: user.role as 'admin' | 'user' } : { id: '', name: '', role: 'user' as const };
+  const { hasPermission } = usePermissionsMatrix();
+  const canCreatePayment = hasPermission('payments', 'create');
+  const canEditPayment = hasPermission('payments', 'edit');
+  const canDeletePayment = hasPermission('payments', 'delete');
+  const canApprovePayment = hasPermission('payments', 'approve_level1') || hasPermission('payments', 'approve_level2');
+  const canProcessPayment = hasPermission('payments', 'process');
   const [payments, setPayments] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
@@ -451,6 +454,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
 
   // Check edit permissions
   const canEdit = (payment: any) => {
+    if (!canEditPayment) return false;
     if (currentUser.role === 'admin') return true;
     if (payment.status === 'pending_approval' && payment.createdBy === currentUser.id) return true;
     return false;
@@ -814,12 +818,14 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
           <p className="text-sm text-gray-500">Manage vendor payment requests and progress billing for this project</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {canCreatePayment && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Plus className="w-4 h-4 mr-2" />
               Request Payment
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="w-[98vw] max-w-[98vw] sm:max-w-[96vw] md:max-w-[94vw] lg:max-w-[92vw] xl:max-w-[90vw] 2xl:max-w-[88vw] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -1090,6 +1096,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                     <Button variant="outline" onClick={handleCloseDialog}>
                       Cancel
                     </Button>
+                    {canCreatePayment && (
                     <Button 
                       onClick={handleCreatePayment} 
                       className="bg-[#7A1516] hover:bg-[#5A1012]"
@@ -1097,6 +1104,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                     >
                       Send Request - {calculatePaymentTotal().toLocaleString()} SAR
                     </Button>
+                    )}
                   </div>
                 </>
               ) : isFromInvoice && selectedInvoice ? (
@@ -1385,6 +1393,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                     <Button variant="outline" onClick={handleCloseDialog}>
                       Cancel
                     </Button>
+                    {canCreatePayment && (
                     <Button 
                       onClick={handleCreatePayment} 
                       className="bg-[#7A1516] hover:bg-[#5A1012]"
@@ -1392,6 +1401,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                     >
                       Send Request - {calculatePaymentTotal().toLocaleString()} SAR
                     </Button>
+                    )}
                   </div>
                 </>
               ) : (
@@ -1494,13 +1504,24 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                     <Button variant="outline" onClick={handleCloseDialog}>
                       Cancel
                     </Button>
+                    {isEditMode && canEditPayment && (
                     <Button
-                      onClick={isEditMode ? handleUpdatePayment : handleCreatePayment}
+                      onClick={handleUpdatePayment}
                       className="bg-[#7A1516] hover:bg-[#5A1012]"
                       disabled={!newPayment.vendorId || !newPayment.amount || !newPayment.paymentDate}
                     >
-                      {isEditMode ? 'Save Changes' : 'Send Request'}
+                      Save Changes
                     </Button>
+                    )}
+                    {!isEditMode && canCreatePayment && (
+                    <Button
+                      onClick={handleCreatePayment}
+                      className="bg-[#7A1516] hover:bg-[#5A1012]"
+                      disabled={!newPayment.vendorId || !newPayment.amount || !newPayment.paymentDate}
+                    >
+                      Send Request
+                    </Button>
+                    )}
                   </div>
                 </>
               )}
@@ -1604,7 +1625,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        {(payment.status === 'pending_approval' || payment.status === 'draft' || currentUser.role === 'admin') && (
+                        {canEditPayment && (payment.status === 'pending_approval' || payment.status === 'draft' || currentUser.role === 'admin') && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -1624,7 +1645,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
                         >
                           <Printer className="w-4 h-4" />
                         </Button>
-                        {(payment.status === 'pending_approval' || payment.status === 'draft' || currentUser.role === 'admin') && (
+                        {canDeletePayment && (payment.status === 'pending_approval' || payment.status === 'draft' || currentUser.role === 'admin') && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -1837,7 +1858,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
               </Button>
               
               {/* Admin Actions - Approve/Reject */}
-              {currentUser.role === 'admin' && selectedPayment?.status === 'pending_approval' && (
+              {canApprovePayment && currentUser.role === 'admin' && selectedPayment?.status === 'pending_approval' && (
                 <>
                   <Button 
                     onClick={handleApprovePayment} 
@@ -1855,7 +1876,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
               )}
 
               {/* Admin Action - Mark as Paid */}
-              {currentUser.role === 'admin' && selectedPayment?.status === 'approved' && (
+              {canProcessPayment && currentUser.role === 'admin' && selectedPayment?.status === 'approved' && (
                 <Button 
                   onClick={handleMarkAsPaid} 
                   className="bg-blue-500 hover:bg-blue-600"

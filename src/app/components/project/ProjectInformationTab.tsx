@@ -12,9 +12,10 @@ import { Building2, Mail, Phone, MapPin, FileCheck, FileText, ExternalLink, Edit
 
 interface ProjectInformationTabProps {
   project: Project;
+  canEdit?: boolean;
 }
 
-export function ProjectInformationTab({ project }: ProjectInformationTabProps) {
+export function ProjectInformationTab({ project, canEdit = true }: ProjectInformationTabProps) {
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -120,7 +121,8 @@ export function ProjectInformationTab({ project }: ProjectInformationTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Edit Button */}
+      {/* Edit Button - requires projects:edit */}
+      {canEdit && (
       <div className="flex justify-end">
         {!isEditing ? (
           <Button onClick={() => setIsEditing(true)} className="bg-[#7A1516] hover:bg-[#5a0f10]">
@@ -140,6 +142,7 @@ export function ProjectInformationTab({ project }: ProjectInformationTabProps) {
           </div>
         )}
       </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Customer Details Card */}

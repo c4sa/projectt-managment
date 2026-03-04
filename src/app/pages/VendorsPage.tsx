@@ -8,9 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '../components/ui/label';
 import { Plus, Search, Building2 } from 'lucide-react';
 import { Skeleton } from '../components/ui/skeleton';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function VendorsPage() {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsMatrix();
+  const canView = hasPermission('vendors', 'view');
+  const canCreate = hasPermission('vendors', 'create');
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -62,6 +67,10 @@ export function VendorsPage() {
     });
   };
 
+  if (!canView) {
+    return <AccessDenied message="You don't have permission to view vendors." />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -71,12 +80,14 @@ export function VendorsPage() {
         </div>
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {canCreate && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Plus className="w-4 h-4 mr-2" />
               Add Vendor
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Vendor</DialogTitle>
@@ -162,6 +173,7 @@ export function VendorsPage() {
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
+                {canCreate && (
                 <Button
                   onClick={handleCreateVendor}
                   className="bg-[#7A1516] hover:bg-[#5A1012]"
@@ -169,6 +181,7 @@ export function VendorsPage() {
                 >
                   Add Vendor
                 </Button>
+                )}
               </div>
             </div>
           </DialogContent>

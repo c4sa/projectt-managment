@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import type { Project } from '../../data/store';
 import { CustomerInvoiceTab } from './income/CustomerInvoiceTab';
 import { CustomerPaymentTab } from './income/CustomerPaymentTab';
+import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
@@ -10,7 +11,18 @@ interface Props {
 }
 
 export function ProjectIncomeTab({ projectId, project }: Props) {
-  const [activeTab, setActiveTab] = useState('invoices');
+  const { hasPermission } = usePermissionsMatrix();
+  const canViewInvoices = hasPermission('customer_invoices', 'view');
+  const canViewPayments = hasPermission('payments', 'view');
+  const visibleSubTabs = [canViewInvoices && 'invoices', canViewPayments && 'payments'].filter(Boolean) as string[];
+  const defaultTab = visibleSubTabs[0] || 'invoices';
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  useEffect(() => {
+    if (!visibleSubTabs.includes(activeTab)) {
+      setActiveTab(defaultTab);
+    }
+  }, [visibleSubTabs.join(','), activeTab, defaultTab]);
   const [prefilledPaymentData, setPrefilledPaymentData] = useState<{
     customerId: string;
     invoiceId: string;
@@ -19,7 +31,8 @@ export function ProjectIncomeTab({ projectId, project }: Props) {
 
   const handleRequestPayment = (paymentData: { customerId: string; invoiceId: string; amount: number }) => {
     setPrefilledPaymentData(paymentData);
-    setActiveTab('payments');
+    if (canViewPayments) setActiveTab('payments');
+    else setActiveTab(defaultTab);
   };
 
   return (
@@ -29,15 +42,18 @@ export function ProjectIncomeTab({ projectId, project }: Props) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="invoices">Customer Invoices</TabsTrigger>
-          <TabsTrigger value="payments">Customer Payments</TabsTrigger>
+        <TabsList className={visibleSubTabs.length === 2 ? 'grid w-full grid-cols-2' : 'flex flex-wrap gap-1'}>
+          {canViewInvoices && <TabsTrigger value="invoices">Customer Invoices</TabsTrigger>}
+          {canViewPayments && <TabsTrigger value="payments">Customer Payments</TabsTrigger>}
         </TabsList>
 
+        {canViewInvoices && (
         <TabsContent value="invoices" className="mt-6">
           <CustomerInvoiceTab projectId={projectId} onRequestPayment={handleRequestPayment} />
         </TabsContent>
+        )}
 
+        {canViewPayments && (
         <TabsContent value="payments" className="mt-6">
           <CustomerPaymentTab 
             projectId={projectId} 
@@ -45,6 +61,7 @@ export function ProjectIncomeTab({ projectId, project }: Props) {
             onDataUsed={() => setPrefilledPaymentData(null)}
           />
         </TabsContent>
+        )}
       </Tabs>
     </div>
   );

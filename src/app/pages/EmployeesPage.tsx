@@ -11,8 +11,15 @@ import { Badge } from '../components/ui/badge';
 import { Users, Plus, Edit2, Trash2, Search, X, UserCheck, Briefcase, Mail, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '../components/ui/skeleton';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function EmployeesPage() {
+  const { hasPermission } = usePermissionsMatrix();
+  const canView = hasPermission('employees', 'view');
+  const canCreate = hasPermission('employees', 'create');
+  const canEdit = hasPermission('employees', 'edit');
+  const canDelete = hasPermission('employees', 'delete');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -209,6 +216,10 @@ export function EmployeesPage() {
   const filteredEmployees = getFilteredEmployees();
   const departmentCounts = getDepartmentCounts();
 
+  if (!canView) {
+    return <AccessDenied message="You don't have permission to view employees." />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -217,10 +228,12 @@ export function EmployeesPage() {
           <h1 className="text-3xl font-bold">Employees</h1>
           <p className="text-gray-500">Manage company employees and their information</p>
         </div>
+        {canCreate && (
         <Button onClick={handleAddNew} className="bg-[#7A1516] hover:bg-[#5A1012]">
           <Plus className="w-4 h-4 mr-2" />
           Add Employee
         </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -405,9 +418,12 @@ export function EmployeesPage() {
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
+                      {canEdit && (
                       <Button variant="outline" size="sm" onClick={() => handleEdit(employee)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
+                      )}
+                      {canDelete && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -416,6 +432,7 @@ export function EmployeesPage() {
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -632,9 +649,16 @@ export function EmployeesPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
+            {editingEmployee && canEdit && (
             <Button onClick={handleSave} className="bg-[#7A1516] hover:bg-[#5A1012]">
-              {editingEmployee ? 'Update' : 'Add'} Employee
+              Update Employee
             </Button>
+            )}
+            {!editingEmployee && canCreate && (
+            <Button onClick={handleSave} className="bg-[#7A1516] hover:bg-[#5A1012]">
+              Add Employee
+            </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

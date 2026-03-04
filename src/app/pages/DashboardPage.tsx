@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { useAuth } from '../contexts/AuthContext';
 import { dataStore, Project, Vendor, Customer, PurchaseOrder, VendorInvoice, CustomerInvoice } from '../data/store';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, AlertCircle, FolderKanban, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import { useNavigate } from 'react-router';
 import { Skeleton } from '../components/ui/skeleton';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function DashboardPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsMatrix();
+  const { user } = useAuth();
+  const canViewDashboard = hasPermission('dashboard', 'view');
+  const canViewFinancial = hasPermission('dashboard', 'view_financial');
+  const canViewAllProjects = hasPermission('dashboard', 'view_all_projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -72,21 +80,6 @@ export function DashboardPage() {
     return `${amount.toLocaleString('en-SA')} SAR`;
   };
 
-  // Project status distribution
-  const projectStatusData = [
-    { name: 'Active', value: projects.filter(p => p.status === 'active').length, color: '#10b981' },
-    { name: 'Planning', value: projects.filter(p => p.status === 'planning').length, color: '#f59e0b' },
-    { name: 'On Hold', value: projects.filter(p => p.status === 'on_hold').length, color: '#ef4444' },
-    { name: 'Completed', value: projects.filter(p => p.status === 'completed').length, color: '#3b82f6' },
-  ];
-
-  // Budget vs Actual by project
-  const projectBudgetData = projects.slice(0, 5).map(project => ({
-    name: project.code,
-    budget: project.budget,
-    spent: project.spent,
-  }));
-
   // Calculate monthly revenue/expenses trend from real invoice data
   const getMonthlyTrend = () => {
     const monthlyStats: { [key: string]: { revenue: number; expenses: number } } = {};
@@ -131,6 +124,23 @@ export function DashboardPage() {
 
   const trendData = getMonthlyTrend();
 
+  const displayedProjects = canViewAllProjects
+    ? projects
+    : projects.filter((p: Project & { assignedManagerId?: string }) => p.assignedManagerId === user?.id);
+
+  const projectStatusData = [
+    { name: 'Active', value: displayedProjects.filter(p => p.status === 'active').length, color: '#10b981' },
+    { name: 'Planning', value: displayedProjects.filter(p => p.status === 'planning').length, color: '#f59e0b' },
+    { name: 'On Hold', value: displayedProjects.filter(p => p.status === 'on_hold').length, color: '#ef4444' },
+    { name: 'Completed', value: displayedProjects.filter(p => p.status === 'completed').length, color: '#3b82f6' },
+  ];
+
+  const projectBudgetData = displayedProjects.slice(0, 5).map(project => ({
+    name: project.code,
+    budget: project.budget,
+    spent: project.spent,
+  }));
+
   const kpis = [
     {
       title: t('dashboard.revenue'),
@@ -165,6 +175,10 @@ export function DashboardPage() {
       color: 'bg-orange-500',
     },
   ];
+
+  if (!canViewDashboard) {
+    return <AccessDenied message="You don't have permission to view the dashboard." />;
+  }
 
   if (isLoading) {
     return (
@@ -258,7 +272,8 @@ export function DashboardPage() {
         <p className="text-gray-500 mt-1">Welcome back! Here's what's happening with your projects.</p>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - requires view_financial */}
+      {canViewFinancial && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, index) => (
           <Card key={index}>
@@ -280,6 +295,7 @@ export function DashboardPage() {
           </Card>
         ))}
       </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -291,7 +307,7 @@ export function DashboardPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Active Projects</p>
-                <p className="text-2xl font-bold">{projects.filter(p => p.status === 'active').length}</p>
+                <p className="text-2xl font-bold">{displayedProjects.filter(p => p.status === 'active').length}</p>
               </div>
             </div>
           </CardContent>
@@ -356,7 +372,8 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Budget vs Actual */}
+        {/* Budget vs Actual - requires view_financial */}
+        {canViewFinancial && (
         <Card>
           <CardHeader>
             <CardTitle>Budget vs Actual Spend</CardTitle>
@@ -375,8 +392,10 @@ export function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        )}
 
-        {/* Revenue & Expenses Trend */}
+        {/* Revenue & Expenses Trend - requires view_financial */}
+        {canViewFinancial && (
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Revenue & Expenses Trend</CardTitle>
@@ -395,6 +414,7 @@ export function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Recent Projects */}
@@ -404,7 +424,7 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {projects.slice(0, 5).map((project) => {
+            {displayedProjects.slice(0, 5).map((project) => {
               const customer = customers.find(c => c.id === project.customerId);
               const progress = project.budget && project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
               return (

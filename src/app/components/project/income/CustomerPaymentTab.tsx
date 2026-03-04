@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../../ui/textarea';
 import { Plus, DollarSign, Calendar, CheckCircle } from 'lucide-react';
 import { Badge } from '../../ui/badge';
+import { usePermissionsMatrix } from '../../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
@@ -21,6 +22,8 @@ interface Props {
 }
 
 export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Props) {
+  const { hasPermission } = usePermissionsMatrix();
+  const canCreatePayment = hasPermission('payments', 'create');
   const [payments, setPayments] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -208,12 +211,14 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
           <p className="text-sm text-gray-500">Record payments received from customers</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {canCreatePayment && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Plus className="w-4 h-4 mr-2" />
               Record Payment
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Record Customer Payment</DialogTitle>
@@ -325,6 +330,7 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
+                {canCreatePayment && (
                 <Button
                   onClick={handleCreatePayment}
                   className="bg-[#7A1516] hover:bg-[#5A1012]"
@@ -332,6 +338,7 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
                 >
                   Record Payment
                 </Button>
+                )}
               </div>
             </div>
           </DialogContent>

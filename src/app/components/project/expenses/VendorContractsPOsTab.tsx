@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../../ui/textarea';
 import { Plus, Eye, FileText, Calendar, DollarSign, Upload, X, CheckCircle, XCircle, Send, Pencil, Trash2, Printer } from 'lucide-react';
 import { VendorSelector } from '../../VendorSelector';
+import { usePermissionsMatrix } from '../../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
@@ -19,6 +20,14 @@ interface Props {
 
 export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   const { user } = useAuth();
+  const { hasPermission } = usePermissionsMatrix();
+  const canCreatePO = hasPermission('purchase_orders', 'create');
+  const canEditPO = hasPermission('purchase_orders', 'edit');
+  const canDeletePO = hasPermission('purchase_orders', 'delete');
+  const canSubmitPO = hasPermission('purchase_orders', 'submit');
+  const canApprovePO = hasPermission('purchase_orders', 'approve');
+  const canRejectPO = hasPermission('purchase_orders', 'reject');
+  const canCreatePayment = hasPermission('payments', 'create');
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -481,11 +490,11 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   };
 
   const isAdmin = user?.role === 'admin';
-  const canSendForApproval = selectedPO?.status === 'draft';
-  const canApproveOrReject = isAdmin && selectedPO?.status === 'pending_approval';
-  const canEdit = selectedPO?.status === 'draft' || (isAdmin && selectedPO?.status === 'approved');
+  const canSendForApproval = canSubmitPO && selectedPO?.status === 'draft';
+  const canApproveOrReject = (canApprovePO || canRejectPO) && isAdmin && selectedPO?.status === 'pending_approval';
+  const canEdit = canEditPO && (selectedPO?.status === 'draft' || (isAdmin && selectedPO?.status === 'approved'));
   const isApproved = selectedPO?.status === 'approved';
-  const canRequestPayment = selectedPO?.status && !['draft', 'pending_approval', 'rejected', 'paid'].includes(selectedPO.status);
+  const canRequestPayment = canCreatePayment && selectedPO?.status && !['draft', 'pending_approval', 'rejected', 'paid'].includes(selectedPO.status);
 
   // Calculate PO statistics
   const totalPOValue = purchaseOrders.reduce((sum, po) => sum + (po.total || 0), 0);
@@ -511,12 +520,14 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
           <p className="text-sm text-gray-500">Manage vendor contracts and purchase orders for this project</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {canCreatePO && (
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
               <Plus className="w-4 h-4 mr-2" />
               Create PO
             </Button>
           </DialogTrigger>
+          )}
           <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editMode ? 'Edit Purchase Order' : 'Create Purchase Order'}</DialogTitle>
@@ -801,7 +812,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                {editMode ? (
+                {editMode && canEditPO && (
                   <Button
                     onClick={handleEditPO}
                     className="bg-[#7A1516] hover:bg-[#5A1012]"
@@ -809,7 +820,8 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                   >
                     Update PO
                   </Button>
-                ) : (
+                )}
+                {!editMode && canCreatePO && (
                   <Button
                     onClick={handleCreatePO}
                     className="bg-[#7A1516] hover:bg-[#5A1012]"
@@ -928,7 +940,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        {(po.status === 'draft' || (isAdmin && po.status === 'approved')) && (
+                        {canEditPO && (po.status === 'draft' || (isAdmin && po.status === 'approved')) && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -976,7 +988,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                         >
                           <Printer className="w-4 h-4" />
                         </Button>
-                        {(po.status === 'draft' || isAdmin) && (
+                        {canDeletePO && (po.status === 'draft' || isAdmin) && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -1293,6 +1305,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                 )}
                 {canApproveOrReject && (
                   <>
+                    {canApprovePO && (
                     <Button 
                       className="bg-green-500 hover:bg-green-600 text-white"
                       onClick={handleApprovePO}
@@ -1300,6 +1313,8 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                     >
                       Approve PO
                     </Button>
+                    )}
+                    {canRejectPO && (
                     <Button 
                       className="bg-red-500 hover:bg-red-600 text-white"
                       onClick={handleRejectPO}
@@ -1307,6 +1322,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
                     >
                       Reject PO
                     </Button>
+                    )}
                   </>
                 )}
                 {canEdit && (

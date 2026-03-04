@@ -8,10 +8,15 @@ import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { ArrowLeft, Building2, Mail, Phone, MapPin, FileCheck, Edit2, Save, X, FolderOpen, FileText, DollarSign, Receipt } from 'lucide-react';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsMatrix();
+  const canView = hasPermission('customers', 'view');
+  const canEdit = hasPermission('customers', 'edit');
   const [customer, setCustomer] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [customerProjects, setCustomerProjects] = useState<any[]>([]);
@@ -51,6 +56,10 @@ export function CustomerDetailPage() {
 
     loadCustomerData();
   }, [id]);
+
+  if (!canView) {
+    return <AccessDenied message="You don't have permission to view customer details." />;
+  }
 
   if (loading) {
     return (
@@ -116,16 +125,20 @@ export function CustomerDetailPage() {
         </div>
         
         {!isEditing ? (
+          canEdit && (
           <Button onClick={() => setIsEditing(true)} className="bg-[#7A1516] hover:bg-[#5a0f10]">
             <Edit2 className="w-4 h-4 mr-2" />
             Edit Customer
           </Button>
+          )
         ) : (
           <div className="flex gap-2">
+            {canEdit && (
             <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
               <Save className="w-4 h-4 mr-2" />
               Save Changes
             </Button>
+            )}
             <Button onClick={handleCancel} variant="outline">
               <X className="w-4 h-4 mr-2" />
               Cancel

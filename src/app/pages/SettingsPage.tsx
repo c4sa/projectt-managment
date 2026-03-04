@@ -14,9 +14,17 @@ import { BudgetCategoriesSettings } from '../components/settings/BudgetCategorie
 import { UsersManagement } from '../components/settings/UsersManagement';
 import { ApprovalWorkflowsSettings } from '../components/settings/ApprovalWorkflowsSettings';
 import { PermissionsMatrixSettings } from '../components/settings/PermissionsMatrixSettings';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function SettingsPage() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissionsMatrix();
+  const canViewSettings = hasPermission('settings', 'view');
+  const canEditCompany = hasPermission('settings', 'edit_company');
+  const canEditSystem = hasPermission('settings', 'edit_system');
+  const canManageUsers = hasPermission('settings', 'manage_users');
+  const canManageRoles = hasPermission('settings', 'manage_roles');
   const { language, setLanguage, t } = useLanguage();
 
   const [profile, setProfile] = useState({
@@ -69,6 +77,10 @@ export function SettingsPage() {
     toast.success('Company settings updated');
   };
 
+  if (!canViewSettings) {
+    return <AccessDenied message="You don't have permission to view settings." />;
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -90,19 +102,19 @@ export function SettingsPage() {
             <FolderTree className="w-4 h-4 mr-2" />
             Budget Categories
           </TabsTrigger>
-          {user?.role === 'admin' && (
+          {canManageUsers && (
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
               Users
             </TabsTrigger>
           )}
-          {user?.role === 'admin' && (
+          {canEditSystem && (
             <TabsTrigger value="approvalWorkflows">
               <Shield className="w-4 h-4 mr-2" />
               {t('nav.approvalWorkflows')}
             </TabsTrigger>
           )}
-          {user?.role === 'admin' && (
+          {canManageRoles && (
             <TabsTrigger value="permissionsMatrix">
               <GitBranch className="w-4 h-4 mr-2" />
               {t('nav.permissionsMatrix')}

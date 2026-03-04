@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { dataStore, ProjectStatus, Project } from '../data/store';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -17,10 +18,33 @@ import { ProjectInformationTab } from '../components/project/ProjectInformationT
 import { ProjectExpensesTab } from '../components/project/ProjectExpensesTab';
 import { ProjectManpowerTab } from '../components/project/ProjectManpowerTab';
 import { ProjectIncomeTab } from '../components/project/ProjectIncomeTab';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissionsMatrix();
+  const canViewProject = hasPermission('projects', 'view');
+  const canEditProject = hasPermission('projects', 'edit');
+  const canViewBudget = hasPermission('budget', 'view');
+  const canViewPurchaseOrders = hasPermission('purchase_orders', 'view');
+  const canViewVendorInvoices = hasPermission('vendor_invoices', 'view');
+  const canViewPayments = hasPermission('payments', 'view');
+  const canViewExpenses = canViewPurchaseOrders || canViewVendorInvoices || canViewPayments;
+  const canViewCustomerInvoices = hasPermission('customer_invoices', 'view');
+  const canViewIncome = canViewCustomerInvoices || canViewPayments;
+  const canViewEmployees = hasPermission('employees', 'view');
+  const canViewDocuments = hasPermission('documents', 'view');
+  const canViewTasks = hasPermission('tasks', 'view') || hasPermission('tasks', 'view_all');
+  const visibleTabs = [
+    'information',
+    ...(canViewBudget ? ['budget'] : []),
+    ...(canViewExpenses ? ['expenses'] : []),
+    ...(canViewIncome ? ['income'] : []),
+    ...(canViewEmployees ? ['manpower'] : []),
+    ...(canViewDocuments ? ['documents'] : []),
+    ...(canViewTasks ? ['tasks', 'gantt'] : []),
+  ];
   const [refreshKey, setRefreshKey] = useState(0);
   const [project, setProject] = useState<Project | null>(null);
   const [customer, setCustomer] = useState<any>(null);
@@ -134,6 +158,17 @@ export function ProjectDetailPage() {
     };
   }, [showStatusDropdown]);
 
+  // Ensure activeTab is a visible tab when permissions change
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(visibleTabs[0] || 'information');
+    }
+  }, [canViewBudget, canViewExpenses, canViewIncome, canViewEmployees, canViewDocuments, canViewTasks, activeTab]);
+
+  if (!canViewProject) {
+    return <AccessDenied message="You don't have permission to view this project." />;
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -223,7 +258,8 @@ export function ProjectDetailPage() {
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold">{project.name}</h1>
             
-            {/* Clickable Status Dropdown */}
+            {/* Clickable Status Dropdown - requires projects:edit */}
+            {canEditProject && (
             <div className="relative status-dropdown-container">
               <button
                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
@@ -268,6 +304,12 @@ export function ProjectDetailPage() {
                 </div>
               )}
             </div>
+            )}
+            {!canEditProject && (
+              <span className={`${getStatusColor(project.status)} px-3 py-1 rounded-full text-sm font-medium`}>
+                {project.status.replace('_', ' ')}
+              </span>
+            )}
           </div>
           <p className="text-gray-500">{project.code}</p>
         </div>
@@ -336,43 +378,56 @@ export function ProjectDetailPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap gap-1">
           <TabsTrigger value="information">Information</TabsTrigger>
-          <TabsTrigger value="budget">Budget</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="income">Income</TabsTrigger>
-          <TabsTrigger value="manpower">Manpower</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="gantt">Gantt</TabsTrigger>
+          {canViewBudget && <TabsTrigger value="budget">Budget</TabsTrigger>}
+          {canViewExpenses && <TabsTrigger value="expenses">Expenses</TabsTrigger>}
+          {canViewIncome && <TabsTrigger value="income">Income</TabsTrigger>}
+          {canViewEmployees && <TabsTrigger value="manpower">Manpower</TabsTrigger>}
+          {canViewDocuments && <TabsTrigger value="documents">Documents</TabsTrigger>}
+          {canViewTasks && <TabsTrigger value="tasks">Tasks</TabsTrigger>}
+          {canViewTasks && <TabsTrigger value="gantt">Gantt</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="information" className="mt-6">
-          <ProjectInformationTab project={project} />
+          <ProjectInformationTab project={project} canEdit={canEditProject} />
         </TabsContent>
 
+        {canViewBudget && (
         <TabsContent value="budget" className="mt-6">
           <ProjectBudgetTab projectId={project.id} project={project} />
         </TabsContent>
+        )}
 
+        {canViewExpenses && (
         <TabsContent value="expenses" className="mt-6">
           <ProjectExpensesTab projectId={project.id} project={project} />
         </TabsContent>
+        )}
 
+        {canViewCustomerInvoices && (
         <TabsContent value="income" className="mt-6">
           <ProjectIncomeTab projectId={project.id} project={project} />
         </TabsContent>
+        )}
 
+        {canViewEmployees && (
         <TabsContent value="manpower" className="mt-6">
           <ProjectManpowerTab projectId={project.id} />
         </TabsContent>
+        )}
 
+        {canViewDocuments && (
         <TabsContent value="documents" className="mt-6">
           <ProjectDocumentsTab projectId={project.id} />
         </TabsContent>
+        )}
 
+        {canViewTasks && (
         <TabsContent value="tasks" className="mt-6">
           <ProjectTasksTab projectId={project.id} project={project} />
         </TabsContent>
+        )}
 
+        {canViewTasks && (
         <TabsContent value="gantt" className="mt-6">
           {(() => {
             const projectStart = project.startDate ? new Date(project.startDate) : new Date();
@@ -545,6 +600,7 @@ export function ProjectDetailPage() {
             );
           })()}
         </TabsContent>
+        )}
       </Tabs>
     </div>
   );

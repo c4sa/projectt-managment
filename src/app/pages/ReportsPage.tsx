@@ -5,8 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, PieChart, Pie, Cell } from 'recharts';
 import { Download, FileText } from 'lucide-react';
 import { dataStore, Project, VendorInvoice, CustomerInvoice, Payment } from '../data/store';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { AccessDenied } from '../components/AccessDenied';
 
 export function ReportsPage() {
+  const { hasPermission } = usePermissionsMatrix();
+  const canView = hasPermission('reports', 'view');
+  const canViewFinancial = hasPermission('reports', 'view_financial');
+  const canExport = hasPermission('reports', 'export');
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [projects, setProjects] = useState<Project[]>([]);
   const [vendorInvoices, setVendorInvoices] = useState<VendorInvoice[]>([]);
@@ -107,6 +113,10 @@ export function ReportsPage() {
     return `${amount.toLocaleString('en-SA')} SAR`;
   };
 
+  if (!canView) {
+    return <AccessDenied message="You don't have permission to view reports." />;
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -122,6 +132,7 @@ export function ReportsPage() {
           <h1 className="text-3xl font-bold">Financial Reports & Analytics</h1>
           <p className="text-gray-500 mt-1">Comprehensive financial insights and reporting</p>
         </div>
+        {canExport && (
         <div className="flex gap-2">
           <Button variant="outline">
             <FileText className="w-4 h-4 mr-2" />
@@ -132,6 +143,7 @@ export function ReportsPage() {
             Export Excel
           </Button>
         </div>
+        )}
       </div>
 
       <Tabs defaultValue="overview">
