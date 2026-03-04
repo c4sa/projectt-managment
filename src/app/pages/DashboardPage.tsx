@@ -176,6 +176,7 @@ export function DashboardPage() {
     { name: t('projects.status.on_hold'), value: displayedProjects.filter(p => p.status === 'on_hold').length, color: '#ef4444' },
     { name: t('projects.status.completed'), value: displayedProjects.filter(p => p.status === 'completed').length, color: '#3b82f6' },
   ];
+  const projectStatusPieData = projectStatusData.filter(d => d.value > 0);
 
   const projectBudgetData = displayedProjects.slice(0, 5).map(project => ({
     name: project.code,
@@ -395,20 +396,27 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={projectStatusData}
+                  data={projectStatusPieData.length > 0 ? projectStatusPieData : projectStatusData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={(entry) => `${entry.name}: ${entry.value}`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {projectStatusData.map((entry, index) => (
+                  {(projectStatusPieData.length > 0 ? projectStatusPieData : projectStatusData).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value, name) => [value, `${name}: ${value}`]} />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  payload={projectStatusData.map((entry) => ({
+                    value: `${entry.name}: ${entry.value}`,
+                    type: 'square',
+                    color: entry.color,
+                  }))}
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
