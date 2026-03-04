@@ -1031,6 +1031,23 @@ class DataStore {
     await apiCall(`/documentComments/${id}`, 'DELETE');
   }
 
+  // Project Chat Messages
+  async getProjectChatMessages(projectId: string): Promise<import('../types/project').ProjectChatMessage[]> {
+    return (await apiCall(`/projectChatMessages?projectId=${encodeURIComponent(projectId)}`)) ?? [];
+  }
+
+  async addProjectChatMessage(msg: Omit<import('../types/project').ProjectChatMessage, 'id' | 'createdAt'>): Promise<import('../types/project').ProjectChatMessage> {
+    return await apiCall('/projectChatMessages', 'POST', msg);
+  }
+
+  async updateProjectChatMessage(id: string, updates: Partial<Pick<import('../types/project').ProjectChatMessage, 'message' | 'edited' | 'editedAt'>>): Promise<import('../types/project').ProjectChatMessage> {
+    return await apiCall(`/projectChatMessages/${id}`, 'PUT', updates);
+  }
+
+  async deleteProjectChatMessage(id: string): Promise<void> {
+    await apiCall(`/projectChatMessages/${id}`, 'DELETE');
+  }
+
   // Custom Roles
   async getCustomRoles(): Promise<any[]> {
     return (await apiCall('/custom-roles')) ?? [];

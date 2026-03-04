@@ -15,6 +15,7 @@ import { ProjectTasksTab } from '../components/project/ProjectTasksTab';
 import { ProjectBudgetTab } from '../components/project/ProjectBudgetTab';
 import { ProjectDocumentsTab } from '../components/project/ProjectDocumentsTab';
 import { ProjectInformationTab } from '../components/project/ProjectInformationTab';
+import { ProjectChatTab } from '../components/project/ProjectChatTab';
 import { ProjectExpensesTab } from '../components/project/ProjectExpensesTab';
 import { ProjectManpowerTab } from '../components/project/ProjectManpowerTab';
 import { ProjectIncomeTab } from '../components/project/ProjectIncomeTab';
@@ -46,6 +47,7 @@ export function ProjectDetailPage() {
     ...(canViewEmployees ? ['manpower'] : []),
     ...(canViewDocuments ? ['documents'] : []),
     ...(canViewTasks ? ['tasks', 'gantt'] : []),
+    'chat',
   ];
   const [refreshKey, setRefreshKey] = useState(0);
   const [project, setProject] = useState<Project | null>(null);
@@ -387,6 +389,7 @@ export function ProjectDetailPage() {
           {canViewDocuments && <TabsTrigger value="documents">{t('project.tabDocuments')}</TabsTrigger>}
           {canViewTasks && <TabsTrigger value="tasks">{t('project.tabTasks')}</TabsTrigger>}
           {canViewTasks && <TabsTrigger value="gantt">{t('project.tabGantt')}</TabsTrigger>}
+          <TabsTrigger value="chat">{t('project.tabChat')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="information" className="mt-6">
@@ -428,6 +431,14 @@ export function ProjectDetailPage() {
           <ProjectTasksTab projectId={project.id} project={project} />
         </TabsContent>
         )}
+
+        <TabsContent value="chat" className="mt-6">
+          <ProjectChatTab
+            projectId={project.id}
+            projectName={project.name}
+            teamMemberCount={project.teamMembers?.length ?? 0}
+          />
+        </TabsContent>
 
         {canViewTasks && (
         <TabsContent value="gantt" className="mt-6">
