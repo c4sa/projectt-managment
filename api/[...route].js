@@ -41,6 +41,10 @@ import {
   manpowerMembersHandler,
   approvalWorkflowsHandler,
   documentCommentsHandler,
+  customRolesHandler,
+  rolePermissionsHandler,
+  documentFoldersHandler,
+  documentActivitiesHandler,
   handleBudgetCategories,
   handleSequences,
 } from '../lib/db.js';
@@ -68,6 +72,10 @@ const ENTITY_HANDLERS = {
   manpowerMembers:  manpowerMembersHandler,
   approvalWorkflows: approvalWorkflowsHandler,
   documentComments: documentCommentsHandler,
+  'custom-roles': customRolesHandler,
+  'role-permissions': rolePermissionsHandler,
+  'document-folders': documentFoldersHandler,
+  'document-activities': documentActivitiesHandler,
 };
 
 export default async function handler(req, res) {
@@ -78,7 +86,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   // Parse the path: /api/projects/123 → ["api", "projects", "123"]
-  const pathname = req.url.split('?')[0];
+  // Handle both path-only (/api/role-permissions) and full URL (https://x/api/role-permissions)
+  let pathname = req.url.split('?')[0];
+  if (pathname.startsWith('http')) {
+    try {
+      pathname = new URL(pathname).pathname;
+    } catch (_) {}
+  }
   const parts = pathname.split('/').filter(Boolean);
   const entity = parts[1];
 
@@ -97,14 +111,16 @@ export default async function handler(req, res) {
     try {
       const { data: appUser } = await supabase
         .from('app_users')
-        .select('name, role')
+        .select('name, role, custom_role_id')
         .eq('id', payload.sub)
         .maybeSingle();
+      const role = appUser?.role ?? 'employee';
       const data = {
         id: payload.sub,
         email: payload.email ?? '',
         name: appUser?.name ?? payload.email ?? '',
-        role: appUser?.role ?? 'user',
+        role: role === 'user' ? 'employee' : role,
+        customRoleId: appUser?.custom_role_id || null,
       };
       return res.status(200).json({ success: true, data });
     } catch (e) {
@@ -129,10 +145,13 @@ export default async function handler(req, res) {
       return res.status(403).json({ success: false, error: 'Forbidden: admin only' });
     }
 
-    const { email, name, role } = req.body || {};
+    const { email, name, role, customRoleId } = req.body || {};
     if (!email || !name) {
       return res.status(400).json({ success: false, error: 'email and name are required' });
     }
+
+    const validRoles = ['admin', 'project_manager', 'finance', 'employee'];
+    const appRole = customRoleId ? 'employee' : (validRoles.includes(role) ? role : 'employee');
 
     try {
       // Create the auth user and send the invitation email via Supabase
@@ -145,24 +164,25 @@ export default async function handler(req, res) {
 
       const authUserId = inviteData.user.id;
 
-      // Insert into app_users with the UUID from auth
+      const insertRow = {
+        id: authUserId,
+        name,
+        email,
+        role: appRole,
+        status: 'active',
+        created_at: new Date().toISOString(),
+      };
+      if (customRoleId) insertRow.custom_role_id = customRoleId;
+
       const { data: appUser, error: insertError } = await supabase
         .from('app_users')
-        .insert({
-          id: authUserId,
-          name,
-          email,
-          role: role === 'admin' ? 'admin' : role === 'project_manager' ? 'project_manager' : 'user',
-          status: 'active',
-          created_at: new Date().toISOString(),
-        })
+        .insert(insertRow)
         .select()
         .single();
 
       if (insertError) {
-        // Auth user was created but app_users insert failed — non-fatal, still return success
         console.error('[auth/invite] app_users insert error:', insertError.message);
-        return res.status(200).json({ success: true, data: { id: authUserId, email, name, role: role ?? 'user', status: 'active' } });
+        return res.status(200).json({ success: true, data: { id: authUserId, email, name, role: appRole, customRoleId: customRoleId || null, status: 'active' } });
       }
 
       return res.status(200).json({ success: true, data: appUser });
@@ -193,9 +213,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: 'You cannot modify your own account' });
     }
 
-    const { role, status } = req.body || {};
+    const { role, status, customRoleId } = req.body || {};
     const update = {};
-    if (role === 'admin' || role === 'project_manager' || role === 'user') update.role = role;
+    if (role === 'admin' || role === 'project_manager' || role === 'finance' || role === 'employee') update.role = role;
+    if (customRoleId !== undefined) update.custom_role_id = customRoleId || null;
     if (status === 'active' || status === 'inactive') update.status = status;
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ success: false, error: 'No valid fields to update' });

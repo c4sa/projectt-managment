@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { dataStore, ProjectStatus, Project } from '../data/store';
-import { useProjectPermissions } from '../contexts/ProjectPermissionsContext';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -18,12 +17,10 @@ import { ProjectInformationTab } from '../components/project/ProjectInformationT
 import { ProjectExpensesTab } from '../components/project/ProjectExpensesTab';
 import { ProjectManpowerTab } from '../components/project/ProjectManpowerTab';
 import { ProjectIncomeTab } from '../components/project/ProjectIncomeTab';
-import { TeamManagementTab } from '../components/project/TeamManagementTab';
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const permissions = useProjectPermissions();
   const [refreshKey, setRefreshKey] = useState(0);
   const [project, setProject] = useState<Project | null>(null);
   const [customer, setCustomer] = useState<any>(null);
@@ -159,24 +156,7 @@ export function ProjectDetailPage() {
     );
   }
 
-  if (!permissions.canAccessProject(project)) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-          <p className="text-gray-600 mb-4">You do not have permission to access this project.</p>
-          <Button onClick={() => navigate('/projects')}>Back to Projects</Button>
-        </div>
-      </div>
-    );
-  }
-
   const progress = totalBudgeted > 0 ? (totalActualSpent / totalBudgeted) * 100 : 0;
-
-  const handleUpdateProject = async (updates: Partial<Project>) => {
-    await dataStore.updateProject(project.id, updates);
-    setRefreshKey((prev) => prev + 1);
-  };
 
   const handleStatusChange = (newStatus: ProjectStatus) => {
     dataStore.updateProject(project.id, { status: newStatus });
@@ -356,25 +336,12 @@ export function ProjectDetailPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap gap-1">
           <TabsTrigger value="information">Information</TabsTrigger>
-          {permissions.hasPermission(project, 'budget') && (
-            <TabsTrigger value="budget">Budget</TabsTrigger>
-          )}
-          {permissions.hasPermission(project, 'expenses') && (
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          )}
-          {permissions.hasPermission(project, 'income') && (
-            <TabsTrigger value="income">Income</TabsTrigger>
-          )}
+          <TabsTrigger value="budget">Budget</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="income">Income</TabsTrigger>
           <TabsTrigger value="manpower">Manpower</TabsTrigger>
-          {permissions.canManageTeam(project) && (
-            <TabsTrigger value="team">Team</TabsTrigger>
-          )}
-          {permissions.hasPermission(project, 'documents') && (
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-          )}
-          {permissions.hasPermission(project, 'tasks') && (
-            <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          )}
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="gantt">Gantt</TabsTrigger>
         </TabsList>
 
@@ -396,10 +363,6 @@ export function ProjectDetailPage() {
 
         <TabsContent value="manpower" className="mt-6">
           <ProjectManpowerTab projectId={project.id} />
-        </TabsContent>
-
-        <TabsContent value="team" className="mt-6">
-          <TeamManagementTab project={project} onUpdateProject={handleUpdateProject} />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-6">

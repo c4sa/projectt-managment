@@ -14,17 +14,43 @@ import { toast } from 'sonner';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
 
+const ROLE_OPTIONS = [
+  { value: 'admin', label: 'Administrator' },
+  { value: 'project_manager', label: 'Project Manager' },
+  { value: 'finance', label: 'Finance' },
+  { value: 'employee', label: 'Employee' },
+];
+
+function getRoleLabel(roleId: string, customRoles: any[]): string {
+  const builtin = ROLE_OPTIONS.find((r) => r.value === roleId);
+  if (builtin) return builtin.label;
+  const custom = customRoles.find((r: any) => r.id === roleId);
+  return custom?.name || roleId;
+}
+
+function getRoleBadgeColor(roleId: string): string {
+  const colors: Record<string, string> = {
+    admin: 'bg-purple-100 text-purple-700',
+    project_manager: 'bg-blue-100 text-blue-700',
+    finance: 'bg-green-100 text-green-700',
+    employee: 'bg-gray-100 text-gray-700',
+  };
+  return colors[roleId] || 'bg-orange-100 text-orange-700';
+}
+
 export function UsersManagement() {
   const { user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [customRoles, setCustomRoles] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any | null>(null);
-  const [editRole, setEditRole] = useState<'admin' | 'user'>('user');
+  const [editRole, setEditRole] = useState<string>('employee');
+  const [editCustomRoleId, setEditCustomRoleId] = useState<string>('');
   const [editStatus, setEditStatus] = useState<'active' | 'inactive'>('active');
   const [saving, setSaving] = useState(false);
 
@@ -35,17 +61,34 @@ export function UsersManagement() {
 
   useEffect(() => {
     const load = async () => {
-      const [u, e] = await Promise.all([dataStore.getUsers(), dataStore.getEmployees()]);
-      setUsers(u);
-      setEmployees(e);
+      try {
+        const [u, e] = await Promise.all([dataStore.getUsers(), dataStore.getEmployees()]);
+        setUsers(u);
+        setEmployees(e);
+      } catch {}
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    const loadCustomRoles = async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`${API_BASE}/custom-roles`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) setCustomRoles(json.data);
+      } catch {}
+    };
+    loadCustomRoles();
   }, []);
 
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'employee' as string,
+    customRoleId: '' as string,
     phone: '',
     department: '',
     status: 'active' as 'active' | 'inactive',
@@ -77,7 +120,8 @@ export function UsersManagement() {
         body: JSON.stringify({
           name: newUser.name,
           email: newUser.email,
-          role: newUser.role,
+          role: newUser.customRoleId ? 'employee' : newUser.role,
+          customRoleId: newUser.customRoleId || undefined,
         }),
       });
 
@@ -93,7 +137,8 @@ export function UsersManagement() {
       setNewUser({
         name: '',
         email: '',
-        role: 'user',
+        role: 'employee',
+        customRoleId: '',
         phone: '',
         department: '',
         status: 'active',
@@ -108,7 +153,8 @@ export function UsersManagement() {
 
   const openEditDialog = (u: any) => {
     setEditingUser(u);
-    setEditRole(u.role);
+    setEditRole(['admin', 'project_manager', 'finance', 'employee'].includes(u.role) ? u.role : 'employee');
+    setEditCustomRoleId(u.customRoleId || '');
     setEditStatus(u.status);
     setEditDialogOpen(true);
   };
@@ -124,7 +170,11 @@ export function UsersManagement() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ role: editRole, status: editStatus }),
+        body: JSON.stringify({
+          role: editCustomRoleId ? 'employee' : editRole,
+          customRoleId: editCustomRoleId || undefined,
+          status: editStatus,
+        }),
       });
       const json = await res.json();
       if (!json.success) {
@@ -249,13 +299,31 @@ export function UsersManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Role</Label>
-                  <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value as 'admin' | 'user' })}>
+                  <Select
+                    value={newUser.customRoleId || newUser.role}
+                    onValueChange={(value) => {
+                      const isCustom = customRoles.some((r: any) => r.id === value);
+                      setNewUser({
+                        ...newUser,
+                        role: isCustom ? 'employee' : value,
+                        customRoleId: isCustom ? value : '',
+                      });
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      {ROLE_OPTIONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                      {customRoles.map((r: any) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name} (Custom)
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -363,8 +431,8 @@ export function UsersManagement() {
 
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <Badge className={u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}>
-                        {u.role}
+                      <Badge className={getRoleBadgeColor(u.customRoleId || u.role)}>
+                        {getRoleLabel(u.customRoleId || u.role, customRoles)}
                       </Badge>
                       <p className="text-sm text-gray-500 mt-1">{u.department || 'No Department'}</p>
                     </div>
@@ -423,16 +491,31 @@ export function UsersManagement() {
           <DialogHeader>
             <DialogTitle>Edit User — {editingUser?.name}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={editRole} onValueChange={(v) => setEditRole(v as 'admin' | 'user')}>
+              <Select
+                value={editCustomRoleId || editRole}
+                onValueChange={(v) => {
+                  const isCustom = customRoles.some((r: any) => r.id === v);
+                  setEditRole(isCustom ? 'employee' : v);
+                  setEditCustomRoleId(isCustom ? v : '');
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {ROLE_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                  {customRoles.map((r: any) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name} (Custom)
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

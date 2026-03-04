@@ -7,13 +7,14 @@ import {
   setOnUnauthorized,
 } from '../lib/authClient';
 
-export type UserRole = 'admin' | 'project_manager' | 'user';
+export type UserRole = 'admin' | 'project_manager' | 'finance' | 'employee' | string;
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  customRoleId?: string;
   avatar?: string;
 }
 
@@ -37,11 +38,13 @@ async function fetchMe(token: string): Promise<User | null> {
   const json = await res.json();
   if (!json?.success || !json?.data) return null;
   const d = json.data;
+  const role = ['admin', 'project_manager', 'finance', 'employee'].includes(d.role) ? d.role : 'employee';
   return {
     id: d.id,
     name: d.name ?? d.email ?? '',
     email: d.email ?? '',
-    role: (d.role === 'admin' ? 'admin' : d.role === 'project_manager' ? 'project_manager' : 'user') as UserRole,
+    role,
+    customRoleId: d.customRoleId || undefined,
   };
 }
 

@@ -7,11 +7,13 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { User, Globe, Bell, Building2, FileText, Save, Hash, FolderTree, Users } from 'lucide-react';
+import { User, Globe, Bell, Building2, FileText, Save, Hash, FolderTree, Users, Shield, GitBranch } from 'lucide-react';
 import { toast } from 'sonner';
 import { NumberSequenceSettings } from '../components/settings/NumberSequenceSettings';
 import { BudgetCategoriesSettings } from '../components/settings/BudgetCategoriesSettings';
 import { UsersManagement } from '../components/settings/UsersManagement';
+import { ApprovalWorkflowsSettings } from '../components/settings/ApprovalWorkflowsSettings';
+import { PermissionsMatrixSettings } from '../components/settings/PermissionsMatrixSettings';
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -92,6 +94,18 @@ export function SettingsPage() {
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
               Users
+            </TabsTrigger>
+          )}
+          {user?.role === 'admin' && (
+            <TabsTrigger value="approvalWorkflows">
+              <Shield className="w-4 h-4 mr-2" />
+              {t('nav.approvalWorkflows')}
+            </TabsTrigger>
+          )}
+          {user?.role === 'admin' && (
+            <TabsTrigger value="permissionsMatrix">
+              <GitBranch className="w-4 h-4 mr-2" />
+              {t('nav.permissionsMatrix')}
             </TabsTrigger>
           )}
         </TabsList>
@@ -201,6 +215,28 @@ export function SettingsPage() {
             </CardHeader>
             <CardContent>
               <UsersManagement />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="approvalWorkflows" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Approval Workflows</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ApprovalWorkflowsSettings />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="permissionsMatrix" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Permissions Matrix</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PermissionsMatrixSettings />
             </CardContent>
           </Card>
         </TabsContent>

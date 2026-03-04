@@ -162,7 +162,11 @@ export function VendorsPage() {
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateVendor} className="bg-[#7A1516] hover:bg-[#5A1012]">
+                <Button
+                  onClick={handleCreateVendor}
+                  className="bg-[#7A1516] hover:bg-[#5A1012]"
+                  disabled={!newVendor.name.trim()}
+                >
                   Add Vendor
                 </Button>
               </div>

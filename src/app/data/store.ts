@@ -4,7 +4,18 @@
 
 import { getAccessToken, notifyUnauthorized } from '../lib/authClient';
 import { numberGenerator, NumberSequences } from '../utils/numberGenerator';
-import type { TeamMember } from '../types/project';
+
+// Team member shape (from projects.teamMembers JSONB)
+export interface TeamMember {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  role: 'project_manager' | 'team_member';
+  permissions?: { expenses?: boolean; income?: boolean; budget?: boolean; documents?: boolean; tasks?: boolean };
+  addedAt?: string;
+  addedBy?: string;
+}
 
 // API base: set VITE_API_BASE_URL=http://localhost:3000 in .env.local for local dev.
 // On Vercel, leave it unset and the app uses relative /api/... paths.
@@ -426,12 +437,39 @@ export interface Payment {
 export interface Document {
   id: string;
   projectId: string;
+  folderId?: string | null;
   name: string;
   type: DocumentType;
   fileUrl: string;
   fileSize: number;
   uploadedBy: string;
   uploadedAt: string;
+  mimeType?: string;
+  filePath?: string;
+  version?: number;
+  tags?: string[];
+}
+
+export interface DocumentFolder {
+  id: string;
+  projectId: string;
+  parentId?: string | null;
+  name: string;
+  description?: string;
+  color?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+export interface DocumentActivity {
+  id: string;
+  documentId?: string;
+  folderId?: string;
+  projectId: string;
+  userId: string;
+  action: string;
+  details?: string;
+  createdAt?: string;
 }
 
 export interface PrintTemplate {
@@ -929,6 +967,32 @@ class DataStore {
     await apiCall(`/documents/${id}`, 'DELETE');
   }
 
+  // Document Folders
+  async getDocumentFolders(projectId: string): Promise<DocumentFolder[]> {
+    return (await apiCall(`/document-folders?projectId=${encodeURIComponent(projectId)}`)) ?? [];
+  }
+
+  async addDocumentFolder(folder: Omit<DocumentFolder, 'id' | 'createdAt'>): Promise<DocumentFolder> {
+    return await apiCall('/document-folders', 'POST', folder);
+  }
+
+  async updateDocumentFolder(id: string, updates: Partial<Pick<DocumentFolder, 'name' | 'description' | 'color' | 'parentId'>>): Promise<DocumentFolder> {
+    return await apiCall(`/document-folders/${id}`, 'PUT', updates);
+  }
+
+  async deleteDocumentFolder(id: string): Promise<void> {
+    await apiCall(`/document-folders/${id}`, 'DELETE');
+  }
+
+  // Document Activities
+  async getDocumentActivities(projectId: string): Promise<DocumentActivity[]> {
+    return (await apiCall(`/document-activities?projectId=${encodeURIComponent(projectId)}`)) ?? [];
+  }
+
+  async addDocumentActivity(activity: Omit<DocumentActivity, 'id' | 'createdAt'>): Promise<DocumentActivity> {
+    return await apiCall('/document-activities', 'POST', activity);
+  }
+
   // Approval Workflows
   async getApprovalWorkflows(): Promise<any[]> {
     return (await apiCall('/approvalWorkflows')) ?? [];
@@ -965,6 +1029,41 @@ class DataStore {
 
   async deleteDocumentComment(id: string): Promise<void> {
     await apiCall(`/documentComments/${id}`, 'DELETE');
+  }
+
+  // Custom Roles
+  async getCustomRoles(): Promise<any[]> {
+    return (await apiCall('/custom-roles')) ?? [];
+  }
+
+  async addCustomRole(role: { name: string; description?: string; isCustom?: boolean }): Promise<any> {
+    return await apiCall('/custom-roles', 'POST', { ...role, isCustom: true });
+  }
+
+  async updateCustomRole(id: string, updates: Partial<{ name: string; description: string }>): Promise<any> {
+    return await apiCall(`/custom-roles/${id}`, 'PUT', updates);
+  }
+
+  async deleteCustomRole(id: string): Promise<void> {
+    await apiCall(`/custom-roles/${id}`, 'DELETE');
+  }
+
+  // Role Permissions
+  async getRolePermissions(roleId?: string): Promise<any[]> {
+    const path = roleId ? `/role-permissions?roleId=${encodeURIComponent(roleId)}` : '/role-permissions';
+    return (await apiCall(path)) ?? [];
+  }
+
+  async addRolePermission(perm: { roleId: string; module: string; action: string; allowed: boolean }): Promise<any> {
+    return await apiCall('/role-permissions', 'POST', perm);
+  }
+
+  async updateRolePermission(id: string, updates: Partial<{ allowed: boolean }>): Promise<any> {
+    return await apiCall(`/role-permissions/${id}`, 'PUT', updates);
+  }
+
+  async deleteRolePermission(id: string): Promise<void> {
+    await apiCall(`/role-permissions/${id}`, 'DELETE');
   }
 
   // Print Templates

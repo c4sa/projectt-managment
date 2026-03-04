@@ -3,19 +3,23 @@ import { dataStore } from '../../data/store';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Textarea } from '../ui/textarea';
 import {
   Plus, FileText, Download, Trash2, Upload,
-  Eye, X, Search, Grid, List,
+  Eye, Search, Grid, List, Folder, FolderPlus, Clock, User,
+  ChevronRight, Home, X,
   FileImage, FileSpreadsheet, FileType, FileCode, FileArchive,
 } from 'lucide-react';
 import { DocumentChatThread } from '../documents/DocumentChatThread';
 import { supabaseAuth } from '../../lib/authClient';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
@@ -24,14 +28,36 @@ interface Props {
 interface DocumentRecord {
   id: string;
   projectId: string;
+  folderId?: string | null;
   name: string;
   type: string;
   fileUrl: string;
   fileSize: number;
   uploadedBy: string;
   uploadedAt: string;
-  // extra metadata stored in name for display
   mimeType?: string;
+}
+
+interface FolderItem {
+  id: string;
+  projectId: string;
+  parentId?: string | null;
+  name: string;
+  description?: string;
+  color?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+interface ActivityItem {
+  id: string;
+  documentId?: string;
+  folderId?: string;
+  projectId: string;
+  userId: string;
+  action: string;
+  details?: string;
+  createdAt?: string;
 }
 
 const BUCKET = 'project-documents';
@@ -45,24 +71,50 @@ function mimeToDocType(mime: string): string {
 
 export function ProjectDocumentsTab({ projectId }: Props) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [folders, setFolders] = useState<FolderItem[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [dragActive, setDragActive] = useState(false);
   const [docType, setDocType] = useState<string>('other');
+  const [newFolder, setNewFolder] = useState({ name: '', description: '', color: '#3B82F6' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<any[]>([]);
 
   const { user: currentUser } = useAuth();
+  const { hasPermission } = usePermissionsMatrix();
 
   useEffect(() => {
     loadDocuments();
+    loadFolders();
+    loadActivities();
     dataStore.getUsers().then(setUsers);
   }, [projectId]);
+
+  const loadFolders = async () => {
+    try {
+      const data = await dataStore.getDocumentFolders(projectId);
+      setFolders(data);
+    } catch (err) {
+      console.error('Error loading folders:', err);
+    }
+  };
+
+  const loadActivities = async () => {
+    try {
+      const data = await dataStore.getDocumentActivities(projectId);
+      setActivities(data);
+    } catch (err) {
+      console.error('Error loading activities:', err);
+    }
+  };
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -106,6 +158,7 @@ export function ProjectDocumentsTab({ projectId }: Props) {
         // Save metadata via API
         await dataStore.addDocument({
           projectId,
+          folderId: currentFolderId || undefined,
           name: file.name,
           type: docType as any,
           fileUrl,
@@ -113,6 +166,15 @@ export function ProjectDocumentsTab({ projectId }: Props) {
           uploadedBy: currentUser?.id ?? 'unknown',
           uploadedAt: new Date().toISOString(),
         });
+
+        try {
+          await dataStore.addDocumentActivity({
+            projectId,
+            userId: currentUser?.id ?? 'unknown',
+            action: 'uploaded',
+            details: file.name,
+          });
+        } catch (_) {}
 
         successCount++;
       } catch (err: any) {
@@ -127,6 +189,52 @@ export function ProjectDocumentsTab({ projectId }: Props) {
     if (successCount > 0) {
       toast.success(`Successfully uploaded ${successCount} file(s)`);
       await loadDocuments();
+      await loadActivities();
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolder.name.trim()) {
+      toast.error('Please enter a folder name');
+      return;
+    }
+    try {
+      await dataStore.addDocumentFolder({
+        projectId,
+        parentId: currentFolderId,
+        name: newFolder.name,
+        description: newFolder.description || undefined,
+        color: newFolder.color,
+        createdBy: currentUser?.id,
+      });
+      toast.success('Folder created');
+      setFolderDialogOpen(false);
+      setNewFolder({ name: '', description: '', color: '#3B82F6' });
+      await loadFolders();
+      try {
+        await dataStore.addDocumentActivity({
+          projectId,
+          userId: currentUser?.id ?? 'unknown',
+          action: 'folder_created',
+          details: newFolder.name,
+        });
+      } catch (_) {}
+      await loadActivities();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create folder');
+    }
+  };
+
+  const handleDeleteFolder = async (folderId: string) => {
+    if (!confirm('Delete this folder? Documents inside will remain in project.')) return;
+    try {
+      await dataStore.deleteDocumentFolder(folderId);
+      toast.success('Folder deleted');
+      if (currentFolderId === folderId) setCurrentFolderId(null);
+      await loadFolders();
+      await loadActivities();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete folder');
     }
   };
 
@@ -150,8 +258,18 @@ export function ProjectDocumentsTab({ projectId }: Props) {
       }
 
       await dataStore.deleteDocument(doc.id);
+      try {
+        await dataStore.addDocumentActivity({
+          projectId,
+          userId: currentUser?.id ?? 'unknown',
+          action: 'deleted',
+          details: doc.name,
+          documentId: doc.id,
+        });
+      } catch (_) {}
       toast.success('Document deleted');
       await loadDocuments();
+      await loadActivities();
       if (selectedDoc?.id === doc.id) {
         setSelectedDoc(null);
         setPreviewOpen(false);
@@ -210,9 +328,30 @@ export function ProjectDocumentsTab({ projectId }: Props) {
     return user?.name ?? userId ?? 'Unknown';
   };
 
-  const filtered = documents.filter(d =>
+  const currentFolderDocs = documents.filter(d =>
+    (d.folderId ?? null) === currentFolderId &&
     d.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const currentSubFolders = folders.filter(f =>
+    (f.parentId ?? null) === currentFolderId &&
+    f.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getBreadcrumbs = () => {
+    const crumbs: FolderItem[] = [];
+    let curr = currentFolderId;
+    while (curr) {
+      const folder = folders.find(f => f.id === curr);
+      if (folder) {
+        crumbs.unshift(folder);
+        curr = folder.parentId ?? null;
+      } else break;
+    }
+    return crumbs;
+  };
+
+  const breadcrumbs = getBreadcrumbs();
 
   return (
     <div className="space-y-6">
@@ -220,9 +359,60 @@ export function ProjectDocumentsTab({ projectId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Document Management</h2>
-          <p className="text-gray-500 text-sm mt-1">{documents.length} document(s)</p>
+          <p className="text-gray-500 text-sm mt-1">{documents.length} document(s) in {folders.length} folder(s)</p>
         </div>
         <div className="flex items-center gap-2">
+          {hasPermission('documents', 'upload') && (
+          <Dialog open={folderDialogOpen} onOpenChange={setFolderDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <FolderPlus className="w-4 h-4 mr-2" />
+                New Folder
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Folder</DialogTitle>
+                <DialogDescription>Organize documents in folders</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Folder Name *</Label>
+                  <Input
+                    value={newFolder.name}
+                    onChange={(e) => setNewFolder({ ...newFolder, name: e.target.value })}
+                    placeholder="Enter folder name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={newFolder.description}
+                    onChange={(e) => setNewFolder({ ...newFolder, description: e.target.value })}
+                    placeholder="Optional"
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Color</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={newFolder.color}
+                      onChange={(e) => setNewFolder({ ...newFolder, color: e.target.value })}
+                      className="w-14 h-9 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-500">{newFolder.color}</span>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setFolderDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleCreateFolder} className="bg-[#7A1516] hover:bg-[#5A1012]">Create</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          )}
           {/* View toggle */}
           <div className="flex items-center border rounded-lg">
             <Button
@@ -243,6 +433,7 @@ export function ProjectDocumentsTab({ projectId }: Props) {
             </Button>
           </div>
 
+          {hasPermission('documents', 'upload') && (
           <Button
             className="bg-[#7A1516] hover:bg-[#5A1012]"
             onClick={() => setUploadDialogOpen(true)}
@@ -250,34 +441,96 @@ export function ProjectDocumentsTab({ projectId }: Props) {
             <Upload className="w-4 h-4 mr-2" />
             Upload Files
           </Button>
+          )}
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search documents..."
-          className="pl-10"
-        />
+      {/* Search and Breadcrumbs */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search documents and folders..."
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center gap-2 text-sm flex-wrap">
+          <button
+            type="button"
+            onClick={() => setCurrentFolderId(null)}
+            className="flex items-center gap-1 hover:text-[#7A1516] transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </button>
+          {breadcrumbs.map((folder) => (
+            <React.Fragment key={folder.id}>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              <button
+                type="button"
+                onClick={() => setCurrentFolderId(folder.id)}
+                className="hover:text-[#7A1516] transition-colors"
+              >
+                {folder.name}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
 
-      {/* Content */}
+      {/* Content: Files & Folders / Activity Log tabs */}
+      <Tabs defaultValue="files" className="w-full">
+        <TabsList>
+          <TabsTrigger value="files">
+            <Folder className="w-4 h-4 mr-2" />
+            Files & Folders
+          </TabsTrigger>
+          <TabsTrigger value="activity">
+            <Clock className="w-4 h-4 mr-2" />
+            Activity Log
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="files" className="mt-6">
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading documents...</div>
-      ) : filtered.length === 0 ? (
+      ) : currentSubFolders.length === 0 && currentFolderDocs.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-2">No documents yet</p>
-            <p className="text-sm text-gray-400">Upload files to get started</p>
+            <Folder className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 mb-2">This folder is empty</p>
+            <p className="text-sm text-gray-400">Upload files or create folders to get started</p>
           </CardContent>
         </Card>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filtered.map(doc => (
+          {currentSubFolders.map((folder) => (
+            <Card key={folder.id} className="cursor-pointer hover:shadow-lg transition-all group">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div
+                    className="w-12 h-12 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: (folder.color || '#3B82F6') + '20' }}
+                    onClick={() => setCurrentFolderId(folder.id)}
+                  >
+                    <Folder className="w-6 h-6" style={{ color: folder.color || '#3B82F6' }} />
+                  </div>
+                  {hasPermission('documents', 'delete') && (
+                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100" onClick={() => handleDeleteFolder(folder.id)}>
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </Button>
+                  )}
+                </div>
+                <div onClick={() => setCurrentFolderId(folder.id)}>
+                  <h3 className="font-medium text-sm truncate">{folder.name}</h3>
+                  {folder.description && <p className="text-xs text-gray-500 truncate">{folder.description}</p>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {currentFolderDocs.map(doc => (
             <Card key={doc.id} className="cursor-pointer hover:shadow-lg transition-all group">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
@@ -297,9 +550,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                     <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                       <Download className="w-4 h-4" />
                     </Button>
+                    {hasPermission('documents', 'delete') && (
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(doc)}>
                       <Trash2 className="w-4 h-4 text-red-600" />
                     </Button>
+                    )}
                   </div>
                 </div>
                 <h3 className="font-medium text-sm truncate" title={doc.name}>{doc.name}</h3>
@@ -324,7 +579,33 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map(doc => (
+                {currentSubFolders.map((folder) => (
+                  <tr key={folder.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentFolderId(folder.id)}>
+                        <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: (folder.color || '#3B82F6') + '20' }}>
+                          <Folder className="w-4 h-4" style={{ color: folder.color || '#3B82F6' }} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{folder.name}</p>
+                          {folder.description && <p className="text-xs text-gray-500">{folder.description}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">Folder</td>
+                    <td className="px-6 py-4 text-sm">-</td>
+                    <td className="px-6 py-4 text-sm">{folder.createdAt ? new Date(folder.createdAt).toLocaleDateString() : '-'}</td>
+                    <td className="px-6 py-4 text-sm">{getUserName(folder.createdBy ?? '')}</td>
+                    <td className="px-6 py-4 text-right">
+                      {hasPermission('documents', 'delete') && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteFolder(folder.id)}>
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {currentFolderDocs.map(doc => (
                   <tr key={doc.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -352,9 +633,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                         <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                           <Download className="w-4 h-4" />
                         </Button>
+                        {hasPermission('documents', 'delete') && (
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(doc)}>
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -364,6 +647,43 @@ export function ProjectDocumentsTab({ projectId }: Props) {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        <TabsContent value="activity" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity Log</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activities.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No activity recorded yet</div>
+              ) : (
+                <div className="space-y-4">
+                  {activities.slice(0, 50).map((activity) => (
+                    <div key={activity.id} className="flex items-start gap-3 pb-4 border-b last:border-0">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">
+                          <span className="font-medium">{getUserName(activity.userId)}</span>
+                          {' '}{activity.details}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {activity.createdAt ? new Date(activity.createdAt).toLocaleString() : '-'}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="capitalize">
+                        {activity.action.replace(/_/g, ' ')}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
@@ -436,7 +756,7 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(false)}>
+                <Button variant="ghost" size="icon" onClick={() => setPreviewOpen(false)} className="h-8 w-8" aria-label="Close">
                   <X className="w-4 h-4" />
                 </Button>
               </div>

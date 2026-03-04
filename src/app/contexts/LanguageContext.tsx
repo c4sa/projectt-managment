@@ -24,6 +24,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.reports': 'Reports',
     'nav.documents': 'Documents',
     'nav.approvalPermissions': 'Approval Permissions',
+    'nav.approvalWorkflows': 'Approval Workflows',
+    'nav.permissionsMatrix': 'Permissions Matrix',
     'nav.users': 'Users',
     'nav.settings': 'Settings',
     
@@ -152,6 +154,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Roles
     'roles.admin': 'Admin',
     'roles.projectManager': 'Project Manager',
+    'roles.finance': 'Finance',
+    'roles.employee': 'Employee',
     'roles.financeManager': 'Finance Manager',
     'roles.ceo': 'CEO',
 
@@ -257,6 +261,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.reports': 'التقارير',
     'nav.documents': 'المستندات',
     'nav.approvalPermissions': 'صلاحيات الموافقة',
+    'nav.approvalWorkflows': 'سير عمل الموافقة',
+    'nav.permissionsMatrix': 'مصفوفة الصلاحيات',
     'nav.users': 'المستخدمين',
     'nav.settings': 'الإعدادات',
     
@@ -385,6 +391,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Roles
     'roles.admin': 'مدير النظام',
     'roles.projectManager': 'مدير المشروع',
+    'roles.finance': 'المالية',
+    'roles.employee': 'موظف',
     'roles.financeManager': 'مدير المالية',
     'roles.ceo': 'الرئيس التنفيذي',
 

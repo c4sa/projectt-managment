@@ -17,7 +17,6 @@ import { ReportsPage } from './pages/ReportsPage';
 import { UsersPage } from './pages/UsersPage';
 import { EmployeesPage } from './pages/EmployeesPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { ApprovalPermissionsPage } from './pages/ApprovalPermissionsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -50,7 +49,6 @@ export const router = createBrowserRouter([
       { path: 'reports', Component: ReportsPage },
       { path: 'users', Component: UsersPage },
       { path: 'employees', Component: EmployeesPage },
-      { path: 'approval-permissions', Component: ApprovalPermissionsPage },
       { path: 'settings', Component: SettingsPage },
       { path: '*', Component: NotFoundPage },
     ],

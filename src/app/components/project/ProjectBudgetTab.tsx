@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dataStore, BudgetItem, BudgetCategory, Project } from '../../data/store';
-import { useProjectPermissions } from '../../contexts/ProjectPermissionsContext';
+import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -27,8 +27,10 @@ const InfoTooltip: React.FC<{ text: string }> = ({ text }) => (
 );
 
 export function ProjectBudgetTab({ projectId, project }: Props) {
-  const permissions = useProjectPermissions();
-  const canModifyBudget = !project || permissions.hasPermission(project, 'budget');
+  const { hasPermission } = usePermissionsMatrix();
+  const canCreate = hasPermission('budget', 'create');
+  const canEdit = hasPermission('budget', 'edit');
+  const canDelete = hasPermission('budget', 'delete');
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -257,16 +259,6 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
     };
   }).filter(d => d.budgeted > 0 || d.reserved > 0 || d.actualSpent > 0);
 
-  if (!canModifyBudget) {
-    return (
-      <Alert>
-        <AlertDescription>
-          Only the Project Manager can modify budget. Contact your project manager if you need changes.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -276,6 +268,7 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
             Note: All amounts (Budget, Reserved, Remaining, and Actual Spent) are VAT exclusive
           </p>
         </div>
+        {canCreate && (
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
@@ -339,6 +332,7 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
             </div>
           </DialogContent>
         </Dialog>
+        )}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -510,7 +504,7 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
                     </span>
                   </th>
                   <th className="text-right py-3 px-4">%</th>
-                  <th className="text-right py-3 px-4">Actions</th>
+                  {(canEdit || canDelete) && <th className="text-right py-3 px-4">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -529,25 +523,33 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
                       </td>
                       <td className="text-right py-3 px-4">{itemPercent.toFixed(1)}%</td>
                       <td className="text-right py-3 px-4">
-                        <Button
-                          className="bg-[#7A1516] hover:bg-[#5A1012] mr-2"
-                          onClick={() => handleEditItem(item)}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          className="bg-red-500 hover:bg-red-600"
-                          onClick={() => handleDeleteItem(item)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {(canEdit || canDelete) && (
+                          <>
+                            {canEdit && (
+                              <Button
+                                className="bg-[#7A1516] hover:bg-[#5A1012] mr-2"
+                                onClick={() => handleEditItem(item)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                className="bg-red-500 hover:bg-red-600"
+                                onClick={() => handleDeleteItem(item)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </>
+                        )}
                       </td>
                     </tr>
                   );
                 })}
                 {budgetItemsWithCalculations.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-500">
+                    <td colSpan={(canEdit || canDelete) ? 8 : 7} className="text-center py-8 text-gray-500">
                       No budget items yet. Add your first item!
                     </td>
                   </tr>

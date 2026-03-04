@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useProjectPermissions } from '../contexts/ProjectPermissionsContext';
+import { useAuth } from '../contexts/AuthContext';
+import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { dataStore, Project, ProjectStatus } from '../data/store';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -21,7 +22,8 @@ import { Skeleton } from '../components/ui/skeleton';
 export function ProjectsPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const permissions = useProjectPermissions();
+  const { user } = useAuth();
+  const { hasPermission } = usePermissionsMatrix();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsWithCalculations, setProjectsWithCalculations] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -83,8 +85,7 @@ export function ProjectsPage() {
     }
   }, [dialogOpen]);
 
-  const accessibleProjects = projectsWithCalculations.filter((p) => permissions.canAccessProject(p));
-  const filteredProjects = accessibleProjects.filter((project) => {
+  const filteredProjects = projectsWithCalculations.filter((project) => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
@@ -207,7 +208,7 @@ export function ProjectsPage() {
           <p className="text-gray-500 mt-1">Manage your construction projects</p>
         </div>
 
-        {permissions.canCreateProject() && (
+        {hasPermission('projects', 'create') && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-[#7A1516] hover:bg-[#5A1012]">
@@ -215,10 +216,7 @@ export function ProjectsPage() {
                 {t('projects.newProject')}
               </Button>
             </DialogTrigger>
-          <DialogContent
-            className="max-w-2xl max-h-[90vh] overflow-y-auto"
-            onInteractOutside={(e) => e.preventDefault()}
-          >
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t('projects.newProject')}</DialogTitle>
             </DialogHeader>
@@ -506,7 +504,7 @@ export function ProjectsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {(['planning', 'active', 'on_hold', 'completed'] as ProjectStatus[]).map(status => {
-          const count = accessibleProjects.filter(p => p.status === status).length;
+          const count = projectsWithCalculations.filter(p => p.status === status).length;
           return (
             <Card key={status} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter(status)}>
               <CardContent className="p-4">
