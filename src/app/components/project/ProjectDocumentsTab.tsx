@@ -12,7 +12,7 @@ import { Textarea } from '../ui/textarea';
 import {
   Plus, FileText, Download, Trash2, Upload,
   Eye, Search, Grid, List, Folder, FolderPlus, Clock, User,
-  ChevronRight, Home, X,
+  ChevronRight, ChevronLeft, Home, X, MessageCircle,
   FileImage, FileSpreadsheet, FileType, FileCode, FileArchive,
 } from 'lucide-react';
 import { DocumentChatThread } from '../documents/DocumentChatThread';
@@ -80,6 +80,8 @@ export function ProjectDocumentsTab({ projectId }: Props) {
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<DocumentRecord | null>(null);
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [selectedDocForChat, setSelectedDocForChat] = useState<DocumentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [dragActive, setDragActive] = useState(false);
@@ -457,6 +459,21 @@ export function ProjectDocumentsTab({ projectId }: Props) {
           />
         </div>
         <div className="flex items-center gap-2 text-sm flex-wrap">
+          {currentFolderId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const currentFolder = folders.find(f => f.id === currentFolderId);
+                setCurrentFolderId(currentFolder?.parentId ?? null);
+              }}
+              className="gap-1 hover:text-[#7A1516]"
+              title="Go back"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Back</span>
+            </Button>
+          )}
           <button
             type="button"
             onClick={() => setCurrentFolderId(null)}
@@ -507,23 +524,28 @@ export function ProjectDocumentsTab({ projectId }: Props) {
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {currentSubFolders.map((folder) => (
-            <Card key={folder.id} className="cursor-pointer hover:shadow-lg transition-all group">
+            <Card
+              key={folder.id}
+              className="cursor-pointer hover:shadow-lg transition-all group"
+              onClick={() => setCurrentFolderId(folder.id)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center"
                     style={{ backgroundColor: (folder.color || '#3B82F6') + '20' }}
-                    onClick={() => setCurrentFolderId(folder.id)}
                   >
                     <Folder className="w-6 h-6" style={{ color: folder.color || '#3B82F6' }} />
                   </div>
                   {hasPermission('documents', 'delete') && (
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100" onClick={() => handleDeleteFolder(folder.id)}>
-                    <Trash2 className="w-4 h-4 text-red-600" />
-                  </Button>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100" onClick={() => handleDeleteFolder(folder.id)}>
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </Button>
+                  </div>
                   )}
                 </div>
-                <div onClick={() => setCurrentFolderId(folder.id)}>
+                <div>
                   <h3 className="font-medium text-sm truncate">{folder.name}</h3>
                   {folder.description && <p className="text-xs text-gray-500 truncate">{folder.description}</p>}
                 </div>
@@ -531,7 +553,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
             </Card>
           ))}
           {currentFolderDocs.map(doc => (
-            <Card key={doc.id} className="cursor-pointer hover:shadow-lg transition-all group">
+            <Card
+              key={doc.id}
+              className="cursor-pointer hover:shadow-lg transition-all group"
+              onClick={() => { setSelectedDoc(doc); setPreviewOpen(true); }}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
@@ -541,12 +567,13 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                       getFileIcon(doc.name)
                     )}
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {canPreview(doc.name) && (
-                      <Button variant="ghost" size="sm" onClick={() => { setSelectedDoc(doc); setPreviewOpen(true); }}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    )}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedDoc(doc); setPreviewOpen(true); }} title="View">
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedDocForChat(doc); setChatDialogOpen(true); }} title="Chat">
+                      <MessageCircle className="w-4 h-4" />
+                    </Button>
                     {hasPermission('documents', 'download') && (
                     <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                       <Download className="w-4 h-4" />
@@ -582,9 +609,13 @@ export function ProjectDocumentsTab({ projectId }: Props) {
               </thead>
               <tbody className="divide-y">
                 {currentSubFolders.map((folder) => (
-                  <tr key={folder.id} className="hover:bg-gray-50">
+                  <tr
+                    key={folder.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setCurrentFolderId(folder.id)}
+                  >
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentFolderId(folder.id)}>
+                      <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: (folder.color || '#3B82F6') + '20' }}>
                           <Folder className="w-4 h-4" style={{ color: folder.color || '#3B82F6' }} />
                         </div>
@@ -598,7 +629,7 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                     <td className="px-6 py-4 text-sm">-</td>
                     <td className="px-6 py-4 text-sm">{folder.createdAt ? new Date(folder.createdAt).toLocaleDateString() : '-'}</td>
                     <td className="px-6 py-4 text-sm">{getUserName(folder.createdBy ?? '')}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       {hasPermission('documents', 'delete') && (
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteFolder(folder.id)}>
                         <Trash2 className="w-4 h-4 text-red-600" />
@@ -608,7 +639,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                   </tr>
                 ))}
                 {currentFolderDocs.map(doc => (
-                  <tr key={doc.id} className="hover:bg-gray-50">
+                  <tr
+                    key={doc.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => { setSelectedDoc(doc); setPreviewOpen(true); }}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
@@ -625,13 +660,14 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                     <td className="px-6 py-4 text-sm">{formatFileSize(doc.fileSize)}</td>
                     <td className="px-6 py-4 text-sm">{new Date(doc.uploadedAt).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-sm">{getUserName(doc.uploadedBy)}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        {canPreview(doc.name) && (
-                          <Button variant="ghost" size="sm" onClick={() => { setSelectedDoc(doc); setPreviewOpen(true); }}>
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        )}
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedDoc(doc); setPreviewOpen(true); }} title="View">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedDocForChat(doc); setChatDialogOpen(true); }} title="Chat">
+                          <MessageCircle className="w-4 h-4" />
+                        </Button>
                         {hasPermission('documents', 'download') && (
                         <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                           <Download className="w-4 h-4" />
@@ -751,8 +787,8 @@ export function ProjectDocumentsTab({ projectId }: Props) {
 
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh]">
-          <DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center justify-between">
               <span className="truncate pr-4">{selectedDoc?.name}</span>
               <div className="flex items-center gap-2">
@@ -769,12 +805,15 @@ export function ProjectDocumentsTab({ projectId }: Props) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="overflow-auto max-h-[70vh]">
+          <div className="flex-1 min-h-0 overflow-auto">
             {selectedDoc && (
               <>
                 {isImage(selectedDoc.name) && (
-                  <img src={selectedDoc.fileUrl} alt={selectedDoc.name} className="w-full rounded-lg" />
+                  <img
+                    src={selectedDoc.fileUrl}
+                    alt={selectedDoc.name}
+                    className="w-full max-h-full object-contain rounded-lg"
+                  />
                 )}
                 {selectedDoc.name.toLowerCase().endsWith('.pdf') && (
                   <iframe
@@ -800,17 +839,10 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                 )}
               </>
             )}
-            </div>
-
-            {selectedDoc && (
-              <div className="min-h-0">
-                <DocumentChatThread documentId={selectedDoc.id} documentName={selectedDoc.name} />
-              </div>
-            )}
           </div>
 
           {selectedDoc && (
-            <div className="border-t pt-4 mt-4">
+            <div className="border-t pt-4 mt-4 flex-shrink-0">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500 mb-1">Size</p>
@@ -831,6 +863,23 @@ export function ProjectDocumentsTab({ projectId }: Props) {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Chat Dialog - outside view modal */}
+      <Dialog open={chatDialogOpen} onOpenChange={setChatDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Discussion - {selectedDocForChat?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-auto">
+            {selectedDocForChat && (
+              <DocumentChatThread documentId={selectedDocForChat.id} documentName={selectedDocForChat.name} />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
