@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '../../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 import { Textarea } from '../../ui/textarea';
-import { Plus, Eye, FileText, Calendar, DollarSign, Upload, X, CheckCircle, XCircle, Send, Pencil, Trash2, Printer } from 'lucide-react';
+import { Plus, Eye, FileText, Calendar, DollarSign, Upload, X, CheckCircle, XCircle, Send, Pencil, Trash2, Printer, TrendingUp, TrendingDown } from 'lucide-react';
 import { VendorSelector } from '../../VendorSelector';
 import { usePermissionsMatrix } from '../../../contexts/PermissionsMatrixContext';
 
@@ -512,9 +512,12 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   const totalPaid = payments
     .filter(p => p.poId && (p.status === 'approved' || p.status === 'paid'))
     .reduce((sum, p) => sum + (p.amount || p.subtotal || 0), 0);
-  
-  // Outstanding: Total PO Value (approved only) - Total Paid
-  const outstanding = totalPOValue - totalPaid;
+
+  // Total committed = Total PO (approved) + Total Vendor Invoice (approved)
+  const totalCommitted = totalPOValue + totalInvoiced;
+
+  // Outstanding = Total Paid - Total Committed (negative when we owe, positive when overpaid)
+  const outstanding = totalPaid - totalCommitted;
 
   return (
     <div className="space-y-6">
@@ -880,10 +883,11 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
         <Card>
           <CardContent className="p-6">
             <div className="text-sm text-gray-500 mb-1">Outstanding</div>
-            <div className="text-2xl font-bold text-orange-600">
-              {outstanding.toLocaleString()} SAR
+            <div className={`text-2xl font-bold flex items-center gap-2 ${outstanding > 0 ? 'text-green-600' : 'text-orange-600'}`}>
+              {outstanding > 0 ? <TrendingDown className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />}
+              {Math.abs(outstanding).toLocaleString()} SAR
             </div>
-            <div className="text-xs text-gray-500 mt-1">PO Value - Paid</div>
+            <div className="text-xs text-gray-500 mt-1">Paid - Committed</div>
           </CardContent>
         </Card>
       </div>
