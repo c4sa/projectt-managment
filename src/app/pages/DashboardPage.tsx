@@ -166,9 +166,15 @@ export function DashboardPage() {
 
   const trendData = getMonthlyTrend();
 
+  // When View All Projects is OFF: show projects where user is assigned as manager OR is a team member
+  const isAssignedToProject = (p: Project) => {
+    if (!user?.id) return false;
+    if (p.assignedManagerId === user.id) return true;
+    return (p.teamMembers || []).some((m: { userId?: string }) => m.userId === user.id);
+  };
   const displayedProjects = canViewAllProjects
     ? projects
-    : projects.filter((p: Project & { assignedManagerId?: string }) => p.assignedManagerId === user?.id);
+    : projects.filter((p: Project) => isAssignedToProject(p));
 
   const projectStatusData = [
     { name: t('projects.status.active'), value: displayedProjects.filter(p => p.status === 'active').length, color: '#10b981' },

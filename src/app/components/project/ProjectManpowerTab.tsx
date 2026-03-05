@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { dataStore, ManpowerMember, ManpowerRole, Employee } from '../../data/store';
+import { dataStore, ManpowerMember, ManpowerRole, Employee, Project } from '../../data/store';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,6 +13,7 @@ import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 
 interface Props {
   projectId: string;
+  project?: Project | null;
 }
 
 const roleLabels: Record<ManpowerRole, string> = {
@@ -41,7 +42,7 @@ const roleColors: Record<ManpowerRole, string> = {
   qa_qc: 'bg-red-100 text-red-700',
 };
 
-export function ProjectManpowerTab({ projectId }: Props) {
+export function ProjectManpowerTab({ projectId, project }: Props) {
   const { hasPermission } = usePermissionsMatrix();
   const canCreateEmployee = hasPermission('employees', 'create');
   const canEditEmployee = hasPermission('employees', 'edit');
@@ -149,6 +150,25 @@ export function ProjectManpowerTab({ projectId }: Props) {
     }
   };
 
+  // Include assigned project manager from project (not in manpower_members) as a display entry
+  const assignedPmAsMember = (): ManpowerMember | null => {
+    if (!project?.assignedManagerId || !project?.assignedManagerName) return null;
+    const alreadyInMembers = members.some(m => m.role === 'project_manager' && m.name === project.assignedManagerName);
+    if (alreadyInMembers) return null;
+    return {
+      id: 'assigned-pm',
+      projectId,
+      name: project.assignedManagerName,
+      role: 'project_manager',
+      createdAt: new Date().toISOString(),
+    } as ManpowerMember;
+  };
+
+  const allMembersForDisplay = (): ManpowerMember[] => {
+    const assigned = assignedPmAsMember();
+    return assigned ? [assigned, ...members] : members;
+  };
+
   const getRoleCounts = () => {
     const counts: Record<ManpowerRole, number> = {
       project_manager: 0,
@@ -162,14 +182,14 @@ export function ProjectManpowerTab({ projectId }: Props) {
       safety_officer: 0,
       qa_qc: 0,
     };
-    members.forEach(member => {
+    allMembersForDisplay().forEach(member => {
       counts[member.role]++;
     });
     return counts;
   };
 
   const getFilteredMembers = () => {
-    let filtered = members;
+    let filtered = allMembersForDisplay();
 
     // Filter by role
     if (filterRole !== 'all') {
@@ -220,7 +240,7 @@ export function ProjectManpowerTab({ projectId }: Props) {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Team Members</p>
-                <p className="text-3xl font-bold">{members.length}</p>
+                <p className="text-3xl font-bold">{allMembersForDisplay().length}</p>
               </div>
             </div>
           </div>
@@ -298,7 +318,7 @@ export function ProjectManpowerTab({ projectId }: Props) {
             <div className="text-center py-12">
               <UserCheck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">
-                {members.length === 0
+                {allMembersForDisplay().length === 0
                   ? 'No team members added yet'
                   : 'No team members match your search criteria'}
               </p>
@@ -358,20 +378,26 @@ export function ProjectManpowerTab({ projectId }: Props) {
                       )}
                     </div>
                     <div className="flex gap-2 ml-4">
-                      {canEditEmployee && (
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(member)}>
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      )}
-                      {canDeleteEmployee && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(member.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {member.id === 'assigned-pm' ? (
+                        <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700">Assigned at project level</span>
+                      ) : (
+                        <>
+                          {canEditEmployee && (
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(member)}>
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          )}
+                          {canDeleteEmployee && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(member.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

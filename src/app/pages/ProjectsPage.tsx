@@ -88,9 +88,15 @@ export function ProjectsPage() {
     }
   }, [dialogOpen]);
 
+  // When View All Projects is OFF: show projects where user is assigned as manager OR is a team member
+  const isAssignedToProject = (p: Project) => {
+    if (!user?.id) return false;
+    if (p.assignedManagerId === user.id) return true;
+    return (p.teamMembers || []).some((m: { userId?: string }) => m.userId === user.id);
+  };
   const scopeProjects = canViewAllProjects
     ? projectsWithCalculations
-    : projectsWithCalculations.filter((p: Project & { assignedManagerId?: string }) => p.assignedManagerId === user?.id);
+    : projectsWithCalculations.filter((p: Project) => isAssignedToProject(p));
 
   const filteredProjects = scopeProjects.filter((project) => {
     const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

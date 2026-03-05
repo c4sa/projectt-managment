@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
+import { useAuth } from '../contexts/AuthContext';
 import { dataStore, ProjectStatus, Project } from '../data/store';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -27,7 +28,9 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { hasPermission } = usePermissionsMatrix();
+  const { user } = useAuth();
   const canViewProject = hasPermission('projects', 'view');
+  const canViewAllProjects = hasPermission('projects', 'view_all');
   const canEditProject = hasPermission('projects', 'edit');
   const canViewBudget = hasPermission('budget', 'view');
   const canViewPurchaseOrders = hasPermission('purchase_orders', 'view');
@@ -170,6 +173,16 @@ export function ProjectDetailPage() {
   }, [canViewBudget, canViewExpenses, canViewIncome, canViewEmployees, canViewDocuments, canViewTasks, activeTab]);
 
   if (!canViewProject) {
+    return <AccessDenied message={t('project.accessDenied')} />;
+  }
+
+  // When View All Projects is OFF, user may only access projects they are assigned to
+  const isAssignedToProject = (p: Project) => {
+    if (!user?.id) return false;
+    if (p.assignedManagerId === user.id) return true;
+    return (p.teamMembers || []).some((m: { userId?: string }) => m.userId === user.id);
+  };
+  if (project && !canViewAllProjects && !isAssignedToProject(project)) {
     return <AccessDenied message={t('project.accessDenied')} />;
   }
 
@@ -416,7 +429,7 @@ export function ProjectDetailPage() {
 
         {canViewEmployees && (
         <TabsContent value="manpower" className="mt-6">
-          <ProjectManpowerTab projectId={project.id} />
+          <ProjectManpowerTab projectId={project.id} project={project} />
         </TabsContent>
         )}
 
