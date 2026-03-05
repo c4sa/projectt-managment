@@ -85,8 +85,9 @@ export function PaymentsPage() {
   const filteredPayments = filterPayments('payment');
   const filteredReceipts = filterPayments('receipt');
 
-  const totalPaid = filteredPayments.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.subtotal || p.amount), 0);
-  const totalReceived = filteredReceipts.filter(p => p.status === 'paid').reduce((sum, p) => sum + (p.amount || 0), 0);
+  // Per Document: status = Approved for financial totals
+  const totalPaid = filteredPayments.filter(p => p.status === 'approved' || p.status === 'paid').reduce((sum, p) => sum + (p.subtotal || p.amount || 0), 0);
+  const totalReceived = filteredReceipts.filter(p => p.status === 'approved' || p.status === 'paid').reduce((sum, p) => sum + (p.amount || 0), 0);
 
   if (loading) {
     return (

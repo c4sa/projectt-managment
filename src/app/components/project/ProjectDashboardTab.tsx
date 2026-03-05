@@ -20,10 +20,10 @@ export function ProjectDashboardTab({ project }: Props) {
   
   const budget = project.budget || 0;
   
-  // Calculate spent from PAID payments only
+  // Per Document: TotalActualSpent = Sum(VendorPayments where status = Approved)
   const spent = payments
-    .filter(p => p.status === 'paid')
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
+    .filter(p => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'))
+    .reduce((sum, p) => sum + (p.amount || p.subtotal || 0), 0);
   
   const progress = budget > 0 ? (spent / budget) * 100 : 0;
   const remaining = budget - spent;

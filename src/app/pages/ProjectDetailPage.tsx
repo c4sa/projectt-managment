@@ -143,7 +143,7 @@ export function ProjectDetailPage() {
       setTotalReserved(reserved);
       
       // Calculate total actual spent (only PAID payments)
-      const paidPayments = payments.filter((p: any) => p.type === 'payment' && p.status === 'paid');
+      const paidPayments = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
       const actualSpent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
       setTotalActualSpent(actualSpent);
     };
@@ -412,7 +412,7 @@ export function ProjectDetailPage() {
         </TabsList>
 
         <TabsContent value="information" className="mt-6">
-          <ProjectInformationTab project={project} canEdit={canEditProject} />
+          <ProjectInformationTab project={project} canEdit={canEditProject} refreshWhenVisible={activeTab === 'information'} />
         </TabsContent>
 
         {canViewBudget && (

@@ -52,11 +52,12 @@ export function ReportsPage() {
   }, []);
 
   // Calculate financial metrics from payments per Document (Revenue/Expenses = actual payments, not invoices)
+  // Per Document: Revenue/Expenses = Sum(Payments where status = Approved)
   const totalRevenue = payments
-    .filter((p: any) => p.type === 'receipt' && p.status === 'paid')
+    .filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid'))
     .reduce((sum, p) => sum + (p.amount || 0), 0);
   const totalExpenses = payments
-    .filter((p: any) => p.type === 'payment' && p.status === 'paid')
+    .filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'))
     .reduce((sum, p) => sum + (p.subtotal || p.amount || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
 
@@ -64,14 +65,14 @@ export function ReportsPage() {
   const getMonthlyData = () => {
     const monthlyStats: { [key: string]: { revenue: number; expenses: number; profit: number } } = {};
     
-    payments.filter((p: any) => p.type === 'receipt' && p.status === 'paid').forEach((p: any) => {
+    payments.filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid')).forEach((p: any) => {
       const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
       if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0, profit: 0 };
       monthlyStats[monthKey].revenue += p.amount || 0;
     });
 
-    payments.filter((p: any) => p.type === 'payment' && p.status === 'paid').forEach((p: any) => {
+    payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid')).forEach((p: any) => {
       const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
       if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0, profit: 0 };
@@ -100,10 +101,41 @@ export function ReportsPage() {
 
   const financialData = loading ? [] : getMonthlyData();
 
-  // Calculate period totals (6 months)
+  // Calculate period totals (6 months) and previous 6 months for period-over-period change
   const periodRevenue = financialData.reduce((sum, month) => sum + month.revenue, 0);
   const periodExpenses = financialData.reduce((sum, month) => sum + month.expenses, 0);
   const periodProfit = financialData.reduce((sum, month) => sum + month.profit, 0);
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentMonthIdx = new Date().getMonth();
+  const getPrev6MonthsData = () => {
+    const prevStats: { [key: string]: { revenue: number; expenses: number } } = {};
+    payments.filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid')).forEach((p: any) => {
+      const d = new Date(p.paymentDate || p.paidDate || 0);
+      const monthKey = months[d.getMonth()];
+      if (!prevStats[monthKey]) prevStats[monthKey] = { revenue: 0, expenses: 0 };
+      prevStats[monthKey].revenue += p.amount || 0;
+    });
+    payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid')).forEach((p: any) => {
+      const d = new Date(p.paymentDate || p.paidDate || 0);
+      const monthKey = months[d.getMonth()];
+      if (!prevStats[monthKey]) prevStats[monthKey] = { revenue: 0, expenses: 0 };
+      prevStats[monthKey].expenses += p.subtotal || p.amount || 0;
+    });
+    let prevRev = 0, prevExp = 0;
+    for (let i = 11; i >= 6; i--) {
+      const mIdx = (currentMonthIdx - i + 12) % 12;
+      const mName = months[mIdx];
+      const s = prevStats[mName] || { revenue: 0, expenses: 0 };
+      prevRev += s.revenue;
+      prevExp += s.expenses;
+    }
+    return { prevRevenue: prevRev, prevExpenses: prevExp, prevProfit: prevRev - prevExp };
+  };
+  const prevPeriod = loading ? null : getPrev6MonthsData();
+  const pctRevenue = prevPeriod && prevPeriod.prevRevenue ? (((periodRevenue - prevPeriod.prevRevenue) / prevPeriod.prevRevenue) * 100).toFixed(1) : '0';
+  const pctExpenses = prevPeriod && prevPeriod.prevExpenses ? (((periodExpenses - prevPeriod.prevExpenses) / prevPeriod.prevExpenses) * 100).toFixed(1) : '0';
+  const pctProfit = prevPeriod && prevPeriod.prevProfit !== 0 ? (((periodProfit - prevPeriod.prevProfit) / Math.abs(prevPeriod.prevProfit)) * 100).toFixed(1) : '0';
 
   const formatCurrency = (amount: number) => {
     return `${amount.toLocaleString('en-SA')} SAR`;
@@ -157,21 +189,27 @@ export function ReportsPage() {
               <CardContent className="p-6">
                 <div className="text-sm text-gray-500 mb-1">{t('reports.totalRevenue6M')}</div>
                 <div className="text-2xl font-bold">{formatCurrency(periodRevenue)}</div>
-                <div className="text-sm text-green-600 mt-2">↑ 12.5% {t('reports.fromLastPeriod')}</div>
+                <div className={`text-sm mt-2 ${parseFloat(pctRevenue) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {parseFloat(pctRevenue) >= 0 ? '↑' : '↓'} {pctRevenue}% {t('reports.fromLastPeriod')}
+                </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6">
                 <div className="text-sm text-gray-500 mb-1">{t('reports.totalExpenses6M')}</div>
                 <div className="text-2xl font-bold">{formatCurrency(periodExpenses)}</div>
-                <div className="text-sm text-red-600 mt-2">↑ 8.2% {t('reports.fromLastPeriod')}</div>
+                <div className={`text-sm mt-2 ${parseFloat(pctExpenses) <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {parseFloat(pctExpenses) >= 0 ? '↑' : '↓'} {pctExpenses}% {t('reports.fromLastPeriod')}
+                </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-6">
                 <div className="text-sm text-gray-500 mb-1">{t('reports.netProfit6M')}</div>
                 <div className="text-2xl font-bold">{formatCurrency(periodProfit)}</div>
-                <div className="text-sm text-green-600 mt-2">↑ 18.3% {t('reports.fromLastPeriod')}</div>
+                <div className={`text-sm mt-2 ${parseFloat(pctProfit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {parseFloat(pctProfit) >= 0 ? '↑' : '↓'} {pctProfit}% {t('reports.fromLastPeriod')}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -218,25 +256,16 @@ export function ReportsPage() {
 
         <TabsContent value="profitloss" className="mt-6">
           {(() => {
-            const totalRevenue = customerInvoices.reduce((s, i) => s + i.total, 0);
-            const vatOnRevenue = customerInvoices.reduce((s, i) => s + i.vatAmount, 0);
-            const revenueExVat = totalRevenue - vatOnRevenue;
-            const totalCogs = vendorInvoices.reduce((s, i) => s + i.subtotal, 0);
-            const vatOnCogs = vendorInvoices.reduce((s, i) => s + (i.vatAmount || 0), 0);
-            const grossProfit = revenueExVat - totalCogs;
-            const grossMargin = revenueExVat > 0 ? ((grossProfit / revenueExVat) * 100).toFixed(1) : '0.0';
-            const paidOut = payments.filter(p => p.type === 'payment' && p.status === 'paid').reduce((s, p) => s + (p.subtotal || p.amount), 0);
-            const received = payments.filter(p => p.type === 'receipt' && p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-            const netProfit = revenueExVat - totalCogs;
+            // Per Document: Revenue = Sum(Customer Payments where status = Approved), Expenses = Sum(Vendor Payments where status = Approved)
+            const received = payments.filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid')).reduce((s, p) => s + (p.amount || 0), 0);
+            const paidOut = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid')).reduce((s, p) => s + (p.subtotal || p.amount || 0), 0);
+            const grossProfit = received - paidOut;
+            const grossMargin = received > 0 ? ((grossProfit / received) * 100).toFixed(1) : '0.0';
             const rows = [
               { label: 'Revenue', isHeader: true },
-              { label: 'Customer Invoices (Excl. VAT)', value: revenueExVat, positive: true },
-              { label: 'VAT on Revenue', value: vatOnRevenue, positive: true, sub: true },
-              { label: 'Total Revenue (Incl. VAT)', value: totalRevenue, positive: true, bold: true },
+              { label: 'Total Received (Customer Payments, Approved)', value: received, positive: true, bold: true },
               { label: 'Cost of Sales', isHeader: true },
-              { label: 'Vendor Invoices (Excl. VAT)', value: totalCogs, positive: false },
-              { label: 'VAT on Purchases', value: vatOnCogs, positive: false, sub: true },
-              { label: 'Total Costs (Incl. VAT)', value: totalCogs + vatOnCogs, positive: false, bold: true },
+              { label: 'Total Paid Out (Vendor Payments, Approved)', value: paidOut, positive: false, bold: true },
               { label: 'Gross Profit', isHeader: true },
               { label: `Gross Profit (Margin: ${grossMargin}%)`, value: grossProfit, positive: grossProfit >= 0, bold: true },
               { label: 'Cash Position', isHeader: true },
@@ -282,10 +311,17 @@ export function ReportsPage() {
 
         <TabsContent value="balance" className="mt-6">
           {(() => {
-            const totalReceivable = customerInvoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.total, 0);
-            const totalPayable = vendorInvoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.total, 0);
-            const cashReceived = payments.filter(p => p.type === 'receipt' && p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-            const cashPaidOut = payments.filter(p => p.type === 'payment' && p.status === 'paid').reduce((s, p) => s + (p.subtotal || p.amount), 0);
+            const getInvoiceAmount = (inv: any) => (inv.total ?? (Number(inv.subtotal ?? 0) + Number(inv.vat ?? inv.vatAmount ?? 0))) ?? 0;
+            const cashReceived = payments.filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid')).reduce((s, p) => s + (p.amount || 0), 0);
+            const cashPaidOut = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid')).reduce((s, p) => s + (p.subtotal || p.amount || 0), 0);
+            const totalCustomerInvoiced = customerInvoices
+              .filter(i => i.status === 'approved' || i.status === 'sent')
+              .reduce((s, i) => s + getInvoiceAmount(i), 0);
+            const totalVendorInvoiced = vendorInvoices
+              .filter(i => i.status === 'approved' || i.status === 'paid')
+              .reduce((s, i) => s + getInvoiceAmount(i), 0);
+            const totalReceivable = totalCustomerInvoiced - cashReceived;
+            const totalPayable = totalVendorInvoiced - cashPaidOut;
             const netCash = cashReceived - cashPaidOut;
             const totalAssets = totalReceivable + Math.max(0, netCash);
             const totalLiabilities = totalPayable;
@@ -354,8 +390,8 @@ export function ReportsPage() {
 
         <TabsContent value="cashflow" className="mt-6">
           {(() => {
-            const inflows = payments.filter(p => p.type === 'receipt' && p.status === 'paid');
-            const outflows = payments.filter(p => p.type === 'payment' && p.status === 'paid');
+            const inflows = payments.filter(p => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid'));
+            const outflows = payments.filter(p => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const currentMonth = new Date().getMonth();
             const cashData = [];
@@ -427,16 +463,15 @@ export function ReportsPage() {
 
         <TabsContent value="projects" className="mt-6">
           {(() => {
+            // Per Document: Expenses = Vendor Payments (approved), Revenue = Customer Payments (approved)
             const projectData = projects.map(project => {
               const budgetItems = budgetItemsByProject[project.id] ?? [];
               const totalBudget = budgetItems.reduce((s: number, b: any) => s + b.budgeted, 0) || project.budget || 0;
-              const projectVendorInvoices = vendorInvoices.filter(i => i.projectId === project.id);
-              const projectCustomerInvoices = customerInvoices.filter(i => i.projectId === project.id);
-              const projectPayments = payments.filter(p => p.projectId === project.id);
-              const totalExpenses = projectVendorInvoices.reduce((s, i) => s + i.total, 0);
-              const totalRevenue = projectCustomerInvoices.reduce((s, i) => s + i.total, 0);
-              const totalPaid = projectPayments.filter(p => p.type === 'payment' && p.status === 'paid').reduce((s, p) => s + (p.subtotal || p.amount), 0);
-              const totalReceived = projectPayments.filter(p => p.type === 'receipt' && p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+              const projectPayments = payments.filter((p: any) => p.projectId === project.id);
+              const totalExpenses = projectPayments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid')).reduce((s, p) => s + (p.subtotal || p.amount || 0), 0);
+              const totalRevenue = projectPayments.filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid')).reduce((s, p) => s + (p.amount || 0), 0);
+              const totalPaid = totalExpenses;
+              const totalReceived = totalRevenue;
               const profit = totalRevenue - totalExpenses;
               const budgetUsed = totalBudget > 0 ? ((totalExpenses / totalBudget) * 100).toFixed(1) : '0.0';
               return { ...project, totalBudget, totalExpenses, totalRevenue, totalPaid, totalReceived, profit, budgetUsed };

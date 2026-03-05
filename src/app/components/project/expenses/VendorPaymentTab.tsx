@@ -414,8 +414,8 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
     return invoice ? invoice.invoiceNumber : '-';
   };
 
-  // Calculate payment statistics - only count payments marked as 'paid'
-  const totalPaid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+  // Per Document: TotalPaid = Sum(VendorPayments.amount where status = Approved)
+  const totalPaid = payments.filter(p => p.status === 'approved' || p.status === 'paid').reduce((sum, p) => sum + (p.amount || p.subtotal || 0), 0);
   
   // Total committed should be unique PO values only (not PO + Invoices, as invoices are linked to POs)
   // Sum of all approved POs for this project

@@ -54,7 +54,7 @@ export function ProjectsPage() {
         dataStore.getPayments(project.id),
       ]);
       const totalBudgeted = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
-      const paidPayments = payments.filter((p: any) => p.type === 'payment' && p.status === 'paid');
+      const paidPayments = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
       const totalSpent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
       return {
         ...project,

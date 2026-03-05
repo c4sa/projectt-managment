@@ -149,7 +149,7 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
     let total = 0;
     const category = budgetItem.category;
 
-    const paidPayments = payments.filter((p: any) => p.type === 'payment' && p.status === 'paid');
+    const paidPayments = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
 
     // Payments linked to POs in this budget category
     purchaseOrders.forEach((po: any) => {

@@ -14,9 +14,10 @@ import { useLanguage } from '../../contexts/LanguageContext';
 interface ProjectInformationTabProps {
   project: Project;
   canEdit?: boolean;
+  refreshWhenVisible?: boolean;
 }
 
-export function ProjectInformationTab({ project, canEdit = true }: ProjectInformationTabProps) {
+export function ProjectInformationTab({ project, canEdit = true, refreshWhenVisible = true }: ProjectInformationTabProps) {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [customer, setCustomer] = useState<any>(null);
@@ -42,29 +43,28 @@ export function ProjectInformationTab({ project, canEdit = true }: ProjectInform
     loadCustomer();
   }, [project.customerId]);
 
-  // Calculate total invoiced and paid by customer
+  // Calculate total invoiced and paid by customer - per Document: only Approved records
   useEffect(() => {
+    if (!refreshWhenVisible || !project?.id) return;
     const calculateCustomerFinancials = async () => {
-      // Get all customer invoices for this project
-      const allInvoices = await dataStore.getCustomerInvoices();
-      const projectInvoices = allInvoices.filter((invoice: any) => invoice.projectId === project.id);
-      
-      // Calculate total invoiced (all invoices that are sent or approved, not just drafts)
-      const invoiced = projectInvoices
-        .filter((invoice: any) => invoice.status !== 'draft')
-        .reduce((sum: number, invoice: any) => sum + (invoice.total || 0), 0);
-      
-      // Calculate total paid by customer - use ACTUAL payments received (not invoice status)
-      const allPayments = await dataStore.getPayments(project.id);
-      const customerPayments = allPayments.filter((payment: any) => payment.type === 'receipt' && payment.status === 'paid');
-      const paid = customerPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
-      
-      setTotalInvoiced(invoiced);
-      setTotalPaidByCustomer(paid);
+      try {
+        const allInvoices = await dataStore.getCustomerInvoices();
+        const projectInvoices = allInvoices.filter((inv: any) => inv.projectId === project.id);
+        const getInvoiceAmount = (inv: any) => (inv.total ?? (Number(inv.subtotal ?? 0) + Number(inv.vatAmount ?? 0))) ?? 0;
+        const invoiced = projectInvoices
+          .filter((inv: any) => inv.status === 'approved' || inv.status === 'sent' || inv.status === 'paid')
+          .reduce((sum: number, inv: any) => sum + getInvoiceAmount(inv), 0);
+        const allPayments = await dataStore.getPayments(project.id);
+        const customerPayments = allPayments.filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid'));
+        const paid = customerPayments.reduce((sum: number, p: any) => sum + (p.amount || p.subtotal || 0), 0);
+        setTotalInvoiced(invoiced);
+        setTotalPaidByCustomer(paid);
+      } catch (e) {
+        console.error('ProjectInformationTab: failed to load customer financials', e);
+      }
     };
-
     calculateCustomerFinancials();
-  }, [project.id]);
+  }, [project.id, refreshWhenVisible]);
 
   // Calculate contract value breakdown
   const calculateContractBreakdown = (proj: typeof project) => {

@@ -51,7 +51,7 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
 
     // Update invoice statuses based on payments
     const updatedInvoices = projectInvoices.map((invoice: CustomerInvoice) => {
-      const invoicePayments = paymentsData.filter((p: any) => p.type === 'receipt' && p.invoiceId === invoice.id && p.status === 'paid');
+      const invoicePayments = paymentsData.filter((p: any) => p.type === 'receipt' && p.invoiceId === invoice.id && (p.status === 'approved' || p.status === 'paid'));
       const amountPaid = invoicePayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       
       let status = invoice.status;

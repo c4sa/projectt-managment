@@ -286,6 +286,9 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
     }
   };
 
+  const getInvoiceAmount = (inv: any) =>
+    (inv.total ?? (Number(inv.subtotal ?? 0) + Number(inv.vat ?? inv.vatAmount ?? 0))) ?? 0;
+
   const handleSendForApproval = async () => {
     if (!selectedInvoice) return;
     
@@ -786,7 +789,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
           <CardContent className="p-6">
             <div className="text-sm text-gray-500 mb-1">Total Value</div>
             <div className="text-2xl font-bold text-blue-600">
-              {invoices.reduce((sum, inv) => sum + (inv.total || 0), 0).toLocaleString()} SAR
+              {invoices.reduce((sum, inv) => sum + getInvoiceAmount(inv), 0).toLocaleString()} SAR
             </div>
           </CardContent>
         </Card>
@@ -794,7 +797,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
           <CardContent className="p-6">
             <div className="text-sm text-gray-500 mb-1">Pending Approval</div>
             <div className="text-2xl font-bold text-yellow-600">
-              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'pending_approval').reduce((sum, inv) => sum + (inv.total || 0), 0).toLocaleString()} SAR
+              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'pending_approval').reduce((sum, inv) => sum + getInvoiceAmount(inv), 0).toLocaleString()} SAR
             </div>
             <div className="text-xs text-gray-500 mt-1">
               {invoices.filter(inv => inv.status === 'pending' || inv.status === 'pending_approval').length} invoices
@@ -805,7 +808,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
           <CardContent className="p-6">
             <div className="text-sm text-gray-500 mb-1">Approved</div>
             <div className="text-2xl font-bold text-green-600">
-              {invoices.filter(inv => inv.status === 'approved' || inv.status === 'paid').reduce((sum, inv) => sum + (inv.total || 0), 0).toLocaleString()} SAR
+              {invoices.filter(inv => inv.status === 'approved' || inv.status === 'paid').reduce((sum, inv) => sum + getInvoiceAmount(inv), 0).toLocaleString()} SAR
             </div>
             <div className="text-xs text-gray-500 mt-1">
               {invoices.filter(inv => inv.status === 'approved' || inv.status === 'paid').length} invoices
@@ -857,7 +860,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
                       </div>
                     </td>
                     <td className="text-right py-3 px-4 font-semibold">
-                      {invoice.total.toLocaleString()} SAR
+                      {getInvoiceAmount(invoice).toLocaleString()} SAR
                     </td>
                     <td className="py-3 px-4">
                       <span className={`text-xs px-2 py-1 rounded ${getStatusColor(invoice.status)}`}>

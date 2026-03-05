@@ -120,7 +120,7 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
       if (inv.status === 'draft') return false;
       
       // Calculate amount paid for this invoice
-      const invoicePayments = payments.filter(p => p.invoiceId === inv.id && p.status === 'paid');
+      const invoicePayments = payments.filter(p => p.invoiceId === inv.id && (p.status === 'approved' || p.status === 'paid'));
       const amountPaid = invoicePayments.reduce((sum, p) => sum + p.amount, 0);
       
       // Only show invoices that are not fully paid
@@ -132,7 +132,7 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
     const invoice = invoices.find(inv => inv.id === invoiceId);
     if (!invoice) return 0;
     
-    const invoicePayments = payments.filter(p => p.invoiceId === invoiceId && p.status === 'paid');
+    const invoicePayments = payments.filter(p => p.invoiceId === invoiceId && (p.status === 'approved' || p.status === 'paid'));
     const amountPaid = invoicePayments.reduce((sum, p) => sum + p.amount, 0);
     
     return invoice.total - amountPaid;
@@ -149,14 +149,15 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
   };
 
   // Calculate summary metrics
+  // Per Document: TotalReceived = Sum(CustomerPayments where status = Approved)
   const totalReceived = payments
-    .filter(p => p.status === 'paid')
-    .reduce((sum, p) => sum + p.amount, 0);
+    .filter(p => p.status === 'approved' || p.status === 'paid')
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
   
   const thisMonthPayments = payments.filter(p => {
     const paymentDate = new Date(p.paymentDate);
     const now = new Date();
-    return p.status === 'paid' && 
+    return (p.status === 'approved' || p.status === 'paid') && 
            paymentDate.getMonth() === now.getMonth() && 
            paymentDate.getFullYear() === now.getFullYear();
   });
@@ -196,7 +197,7 @@ export function CustomerPaymentTab({ projectId, prefilledData, onDataUsed }: Pro
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-500 mb-1">Transactions</div>
-                <div className="text-2xl font-bold">{payments.filter(p => p.status === 'paid').length}</div>
+                <div className="text-2xl font-bold">{payments.filter(p => p.status === 'approved' || p.status === 'paid').length}</div>
               </div>
               <CheckCircle className="w-8 h-8 text-purple-500" />
             </div>

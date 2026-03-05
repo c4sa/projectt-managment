@@ -499,17 +499,19 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   // Calculate PO statistics - only approved POs per Document (financial values counted only after approval)
   const APPROVED_PO_STATUSES = ['approved', 'issued', 'received', 'partially_paid', 'paid'];
   const approvedPOs = purchaseOrders.filter((po) => APPROVED_PO_STATUSES.includes(po.status));
-  const totalPOValue = approvedPOs.reduce((sum, po) => sum + (po.subtotal || po.total || 0), 0);
+  // Per Document: TotalPOValue = Sum(PO.amount where status=Approved) - use total to match table Amount column
+  const totalPOValue = approvedPOs.reduce((sum, po) => sum + (po.total ?? po.subtotal ?? 0), 0);
   
-  // Total invoiced: Sum of all approved vendor invoices linked to any PO in this project
+  // Total invoiced: Per Document Sum(VendorInvoices.amount where status=Approved)
+  const getInvoiceAmount = (inv: any) => (inv.total ?? (Number(inv.subtotal ?? 0) + Number(inv.vat ?? inv.vatAmount ?? 0))) ?? 0;
   const totalInvoiced = invoices
-    .filter(inv => inv.poId && (inv.status === 'approved' || inv.status === 'paid'))
-    .reduce((sum, inv) => sum + (inv.total || 0), 0);
+    .filter(inv => inv.status === 'approved' || inv.status === 'paid')
+    .reduce((sum, inv) => sum + getInvoiceAmount(inv), 0);
   
-  // Total paid: Sum of all PAID payments linked to POs
+  // Per Document: TotalPaid = Sum(VendorPayments.amount where status = Approved)
   const totalPaid = payments
-    .filter(p => p.poId && p.status === 'paid')
-    .reduce((sum, p) => sum + (p.amount || 0), 0);
+    .filter(p => p.poId && (p.status === 'approved' || p.status === 'paid'))
+    .reduce((sum, p) => sum + (p.amount || p.subtotal || 0), 0);
   
   // Outstanding: Total PO Value (approved only) - Total Paid
   const outstanding = totalPOValue - totalPaid;

@@ -114,7 +114,7 @@ export function VendorDetailPage() {
   const totalPOAmount = purchaseOrders.reduce((sum, po) => sum + (po.total || 0), 0);
   const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
   const totalPaidAmount = payments
-    .filter(p => p.status === 'paid')
+    .filter(p => p.status === 'approved' || p.status === 'paid')
     .reduce((sum, p) => sum + (p.amount || 0), 0);
   const outstandingAmount = totalInvoiceAmount - totalPaidAmount;
 
@@ -298,7 +298,7 @@ export function VendorDetailPage() {
               <Wallet className="w-8 h-8 text-green-500" />
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              {payments.filter(p => p.status === 'paid').length} {t('vendor.paymentsCount')}
+              {payments.filter(p => p.status === 'approved' || p.status === 'paid').length} {t('vendor.paymentsCount')}
             </p>
           </CardContent>
         </Card>

@@ -25,6 +25,8 @@ export function DashboardPage() {
   const [vendorInvoices, setVendorInvoices] = useState<VendorInvoice[]>([]);
   const [customerInvoices, setCustomerInvoices] = useState<CustomerInvoice[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [projectBudgetData, setProjectBudgetData] = useState<{ name: string; budget: number; spent: number }[]>([]);
+  const [projectsWithProgress, setProjectsWithProgress] = useState<{ project: Project; budget: number; spent: number; progress: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -44,29 +46,57 @@ export function DashboardPage() {
         setPurchaseOrders(posData);
         setVendorInvoices(vendorInvoicesData);
         setCustomerInvoices(customerInvoicesData);
-        setIsLoading(false);
 
-        // Load all payments for revenue calculation (after showing the page)
+        // Load all payments per project for revenue and per-project spent
         const paymentsArrays = await Promise.all(
           projectsData.map((project: Project) => dataStore.getPayments(project.id))
         );
         setPayments(paymentsArrays.flat());
+
+        // Second pass: budget items + tasks for displayed projects (per Document: Budget = Sum(BudgetItems), Spent = Sum(Paid Vendor Payments), Progress = CompletedTasks/TotalTasks)
+        const displayed = canViewAllProjects ? projectsData : projectsData.filter((p: Project) => isAssignedToProject(p));
+        const forChartAndRecent = displayed.slice(0, 5);
+        const budgetAndTasks = await Promise.all(
+          forChartAndRecent.map(async (project: Project) => {
+            const idx = projectsData.findIndex((p: Project) => p.id === project.id);
+            const projectPayments = (idx >= 0 ? paymentsArrays[idx] : []) || [];
+            const [budgetItems, tasks] = await Promise.all([
+              dataStore.getBudgetItems(project.id),
+              dataStore.getTasks(project.id),
+            ]);
+            const budget = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+            const paidPayments = projectPayments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
+            const spent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount || 0), 0);
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
+            const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+            return { project, budget, spent, progress };
+          })
+        );
+        setProjectBudgetData(budgetAndTasks.map(({ project, budget, spent }) => ({
+          name: project.code,
+          budget,
+          spent,
+        })));
+        setProjectsWithProgress(budgetAndTasks);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+      } finally {
         setIsLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [canViewAllProjects, user?.id]);
 
   // Calculate KPIs - Use actual payments for revenue
+  // Per Document: Revenue = Sum(CustomerPayments where status=Approved), Expenses = Sum(VendorPayments where status=Approved)
   const totalRevenue = payments
-    .filter(p => p.type === 'receipt' && p.status === 'paid')
-    .reduce((sum, p) => sum + p.amount, 0);
+    .filter(p => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid'))
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
   
   const totalExpenses = payments
-    .filter(p => p.type === 'payment' && p.status === 'paid')
-    .reduce((sum, p) => sum + (p.subtotal || p.amount), 0);
+    .filter(p => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'))
+    .reduce((sum, p) => sum + (p.subtotal || p.amount || 0), 0);
   
   const totalProfit = totalRevenue - totalExpenses;
   
@@ -87,8 +117,8 @@ export function DashboardPage() {
 
   const isBeforeStartOfThisMonth = (dateStr: string) => new Date(dateStr) < startOfThisMonth;
 
-  const receiptsPaid = payments.filter(p => p.type === 'receipt' && p.status === 'paid');
-  const paymentsPaid = payments.filter(p => p.type === 'payment' && p.status === 'paid');
+  const receiptsPaid = payments.filter(p => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid'));
+  const paymentsPaid = payments.filter(p => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
 
   const prevRevenue = receiptsPaid
     .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
@@ -137,14 +167,14 @@ export function DashboardPage() {
   const getMonthlyTrend = () => {
     const monthlyStats: { [key: string]: { revenue: number; expenses: number } } = {};
     
-    payments.filter((p: any) => p.type === 'receipt' && p.status === 'paid').forEach((p: any) => {
+    payments.filter((p: any) => p.type === 'receipt' && (p.status === 'approved' || p.status === 'paid')).forEach((p: any) => {
       const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
       if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0 };
       monthlyStats[monthKey].revenue += p.amount || 0;
     });
 
-    payments.filter((p: any) => p.type === 'payment' && p.status === 'paid').forEach((p: any) => {
+    payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid')).forEach((p: any) => {
       const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
       if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0 };
@@ -185,12 +215,6 @@ export function DashboardPage() {
     { name: t('projects.status.completed'), value: displayedProjects.filter(p => p.status === 'completed').length, color: '#3b82f6' },
   ];
   const projectStatusPieData = projectStatusData.filter(d => d.value > 0);
-
-  const projectBudgetData = displayedProjects.slice(0, 5).map(project => ({
-    name: project.code,
-    budget: project.budget,
-    spent: project.spent,
-  }));
 
   const kpis = [
     {
@@ -475,16 +499,15 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Recent Projects */}
+      {/* Recent Projects - Progress = CompletedTasks/TotalTasks per Document */}
       <Card>
         <CardHeader>
           <CardTitle>{t('dashboard.recentProjects')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {displayedProjects.slice(0, 5).map((project) => {
+            {projectsWithProgress.map(({ project, budget, spent, progress }) => {
               const customer = customers.find(c => c.id === project.customerId);
-              const progress = project.budget && project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
               return (
                 <div
                   key={project.id}
@@ -511,8 +534,8 @@ export function DashboardPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold">{formatCurrency(project.budget)}</p>
-                    <p className="text-xs text-gray-500">{progress.toFixed(1)}% spent</p>
+                    <p className="text-sm font-semibold">{formatCurrency(budget)}</p>
+                    <p className="text-xs text-gray-500">{progress.toFixed(1)}% complete</p>
                   </div>
                 </div>
               );
