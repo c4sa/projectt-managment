@@ -100,15 +100,22 @@ export function DashboardPage() {
   
   const totalProfit = totalRevenue - totalExpenses;
   
-  // Outstanding per Document: Customer Outstanding − Vendor Outstanding (only approved invoices count)
+  // Outstanding per Document: Customer Outstanding − Vendor Outstanding
+  // Customer Outstanding = Customer Invoices − Customer Payments
+  // Vendor Outstanding = Vendor Invoices − Vendor Payments (vendor obligations = POs + Invoices, per Expense tab logic)
   const totalCustomerInvoiced = customerInvoices
-    .filter(inv => inv.status === 'approved' || inv.status === 'sent')
+    .filter(inv => inv.status === 'approved' || inv.status === 'sent' || inv.status === 'paid')
     .reduce((sum, inv) => sum + (inv.total || 0), 0);
   const customerOutstanding = totalCustomerInvoiced - totalRevenue;
+  const getVendorInvoiceAmount = (inv: any) => (inv.total ?? (Number(inv.subtotal ?? 0) + Number(inv.vat ?? inv.vatAmount ?? 0))) ?? 0;
   const totalVendorInvoiced = vendorInvoices
     .filter(inv => inv.status === 'approved' || inv.status === 'paid')
-    .reduce((sum, inv) => sum + (inv.total || inv.subtotal || 0), 0);
-  const vendorOutstanding = totalVendorInvoiced - totalExpenses;
+    .reduce((sum, inv) => sum + getVendorInvoiceAmount(inv), 0);
+  const totalPOValue = purchaseOrders
+    .filter(po => ['approved', 'issued', 'received', 'partially_paid', 'paid'].includes(po.status))
+    .reduce((sum, po) => sum + (po.total ?? po.subtotal ?? 0), 0);
+  const totalVendorCommitted = totalPOValue + totalVendorInvoiced;
+  const vendorOutstanding = totalVendorCommitted - totalExpenses;
   const netOutstanding = customerOutstanding - vendorOutstanding;
 
   // Percentage changes: this period (month-to-date) vs previous month (full month)
@@ -129,18 +136,22 @@ export function DashboardPage() {
   const prevProfit = prevRevenue - prevExpenses;
 
   const prevCustomerInvoiced = customerInvoices
-    .filter(inv => (inv.status === 'approved' || inv.status === 'sent') && isBeforeStartOfThisMonth(inv.issueDate))
+    .filter(inv => (inv.status === 'approved' || inv.status === 'sent' || inv.status === 'paid') && isBeforeStartOfThisMonth(inv.issueDate))
     .reduce((sum, inv) => sum + (inv.total || 0), 0);
   const prevReceived = receiptsPaid
     .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
     .reduce((sum, p) => sum + p.amount, 0);
   const prevVendorInvoiced = vendorInvoices
     .filter(inv => (inv.status === 'approved' || inv.status === 'paid') && isBeforeStartOfThisMonth(inv.issueDate || inv.invoiceDate))
-    .reduce((sum, inv) => sum + (inv.total || inv.subtotal || 0), 0);
+    .reduce((sum, inv) => sum + getVendorInvoiceAmount(inv), 0);
+  const prevPOValue = purchaseOrders
+    .filter(po => ['approved', 'issued', 'received', 'partially_paid', 'paid'].includes(po.status) && isBeforeStartOfThisMonth(po.issueDate || po.createdAt))
+    .reduce((sum, po) => sum + (po.total ?? po.subtotal ?? 0), 0);
   const prevVendorPaid = paymentsPaid
     .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
     .reduce((sum, p) => sum + (p.subtotal || p.amount), 0);
-  const prevOutstanding = (prevCustomerInvoiced - prevReceived) - (prevVendorInvoiced - prevVendorPaid);
+  const prevVendorOutstanding = (prevPOValue + prevVendorInvoiced) - prevVendorPaid;
+  const prevOutstanding = (prevCustomerInvoiced - prevReceived) - prevVendorOutstanding;
 
   const formatPctChange = (current: number, previous: number, invertGood = false): { text: string; positive: boolean } => {
     if (previous === 0) {

@@ -164,9 +164,9 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
     }
   };
 
-  // Calculate summary metrics - only approved/sent invoices per Document (financial values after approval)
+  // Calculate summary metrics - approved/sent/paid invoices per Document (TotalInvoiced = Sum where status = Approved)
   const totalInvoiced = invoices
-    .filter(inv => inv.status === 'approved' || inv.status === 'sent')
+    .filter(inv => inv.status === 'approved' || inv.status === 'sent' || inv.status === 'paid')
     .reduce((sum, inv) => sum + (inv.total || 0), 0);
   
   const totalPaid = invoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
