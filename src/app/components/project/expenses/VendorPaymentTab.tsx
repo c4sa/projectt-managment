@@ -416,14 +416,19 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
 
   // Per Document: TotalPaid = Sum(VendorPayments.amount where status = Approved)
   const totalPaid = payments.filter(p => p.status === 'approved' || p.status === 'paid').reduce((sum, p) => sum + (p.amount || p.subtotal || 0), 0);
-  
-  // Total committed should be unique PO values only (not PO + Invoices, as invoices are linked to POs)
-  // Sum of all approved POs for this project
-  const totalCommitted = purchaseOrders
+
+  // Total committed = Total Vendor Contract/PO (approved) + Total Vendor Invoice (approved)
+  const totalPOValue = purchaseOrders
     .filter(po => po.status === 'approved' || po.status === 'partially_paid' || po.status === 'paid')
-    .reduce((sum, po) => sum + po.total, 0);
-  
-  const remainingToPay = totalCommitted - totalPaid;
+    .reduce((sum, po) => sum + (po.total ?? po.subtotal ?? 0), 0);
+  const getInvoiceAmount = (inv: any) => (inv.total ?? (Number(inv.subtotal ?? 0) + Number(inv.vat ?? inv.vatAmount ?? 0))) ?? 0;
+  const totalInvoicedValue = invoices
+    .filter(inv => inv.status === 'approved' || inv.status === 'paid')
+    .reduce((sum, inv) => sum + getInvoiceAmount(inv), 0);
+  const totalCommitted = totalPOValue + totalInvoicedValue;
+
+  // Remaining to Pay = Total Paid - Total Committed (negative when we still owe, positive when overpaid)
+  const remainingToPay = totalPaid - totalCommitted;
 
   // Status badge helper
   const getStatusBadge = (status?: string) => {
@@ -1558,8 +1563,8 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
         <Card>
           <CardContent className="p-6">
             <div className="text-sm text-gray-500 mb-1">Remaining to Pay</div>
-            <div className={`text-2xl font-bold flex items-center gap-2 ${remainingToPay >= 0 ? 'text-orange-600' : 'text-green-600'}`}>
-              {remainingToPay >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+            <div className={`text-2xl font-bold flex items-center gap-2 ${remainingToPay > 0 ? 'text-green-600' : 'text-orange-600'}`}>
+              {remainingToPay > 0 ? <TrendingDown className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />}
               {Math.abs(remainingToPay).toLocaleString()} SAR
             </div>
           </CardContent>
