@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -9,6 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { User, Lock, Save, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
+const STORAGE_KEY_PREFIX = 'core_code_profile_';
+
+function getStorageKey(userId: string | undefined) {
+  return userId ? `${STORAGE_KEY_PREFIX}${userId}` : 'core_code_profile';
+}
+
 interface ProfileSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -18,15 +24,31 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
   const { user } = useAuth();
   const { language, setLanguage } = useLanguage();
 
-  const loadProfile = () => {
+  const loadProfileForUser = (): { name: string; email: string; phone: string; photoBase64: string } => {
+    const base = { name: user?.name || '', email: user?.email || '', phone: '', photoBase64: '' };
+    if (!user?.id) return base;
     try {
-      const stored = localStorage.getItem('core_code_profile');
-      if (stored) return JSON.parse(stored);
+      const stored = localStorage.getItem(getStorageKey(user.id));
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          name: parsed.name ?? user?.name ?? '',
+          email: parsed.email ?? user?.email ?? '',
+          phone: parsed.phone ?? '',
+          photoBase64: parsed.photoBase64 ?? '',
+        };
+      }
     } catch {}
-    return { name: user?.name || '', email: user?.email || '', phone: '', photoBase64: '' };
+    return base;
   };
 
-  const [profile, setProfile] = useState(loadProfile);
+  const [profile, setProfile] = useState(loadProfileForUser);
+
+  useEffect(() => {
+    if (open && user) {
+      setProfile(loadProfileForUser());
+    }
+  }, [open, user]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,7 +68,8 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
   });
 
   const handleSaveProfile = () => {
-    localStorage.setItem('core_code_profile', JSON.stringify(profile));
+    const key = getStorageKey(user?.id);
+    localStorage.setItem(key, JSON.stringify(profile));
     toast.success('Profile updated successfully');
     onOpenChange(false);
   };

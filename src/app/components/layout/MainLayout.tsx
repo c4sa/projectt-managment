@@ -56,32 +56,26 @@ export function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(() => {
-    try {
-      const stored = localStorage.getItem('core_code_profile');
-      if (stored) {
-        const p = JSON.parse(stored);
-        return p.photoBase64 || null;
-      }
-    } catch {}
-    return null;
-  });
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!profileDialogOpen) {
-      try {
-        const stored = localStorage.getItem('core_code_profile');
-        if (stored) {
-          const p = JSON.parse(stored);
-          setProfilePhoto(p.photoBase64 || null);
-        } else {
-          setProfilePhoto(null);
-        }
-      } catch {
+    if (!user?.id) {
+      setProfilePhoto(null);
+      return;
+    }
+    try {
+      const key = `core_code_profile_${user.id}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const p = JSON.parse(stored);
+        setProfilePhoto(p.photoBase64 || null);
+      } else {
         setProfilePhoto(null);
       }
+    } catch {
+      setProfilePhoto(null);
     }
-  }, [profileDialogOpen]);
+  }, [user?.id, profileDialogOpen]);
 
   React.useEffect(() => {
     if (!isLoading && !isAuthenticated) {
