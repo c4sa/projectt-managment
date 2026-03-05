@@ -496,8 +496,10 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
   const isApproved = selectedPO?.status === 'approved';
   const canRequestPayment = canCreatePayment && selectedPO?.status && !['draft', 'pending_approval', 'rejected', 'paid'].includes(selectedPO.status);
 
-  // Calculate PO statistics
-  const totalPOValue = purchaseOrders.reduce((sum, po) => sum + (po.total || 0), 0);
+  // Calculate PO statistics - only approved POs per Document (financial values counted only after approval)
+  const APPROVED_PO_STATUSES = ['approved', 'issued', 'received', 'partially_paid', 'paid'];
+  const approvedPOs = purchaseOrders.filter((po) => APPROVED_PO_STATUSES.includes(po.status));
+  const totalPOValue = approvedPOs.reduce((sum, po) => sum + (po.subtotal || po.total || 0), 0);
   
   // Total invoiced: Sum of all approved vendor invoices linked to any PO in this project
   const totalInvoiced = invoices
@@ -509,7 +511,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
     .filter(p => p.poId && p.status === 'paid')
     .reduce((sum, p) => sum + (p.amount || 0), 0);
   
-  // Outstanding: Total PO Value - Total Paid
+  // Outstanding: Total PO Value (approved only) - Total Paid
   const outstanding = totalPOValue - totalPaid;
 
   return (
@@ -852,7 +854,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
             <div className="text-2xl font-bold text-blue-600">
               {totalPOValue.toLocaleString()} SAR
             </div>
-            <div className="text-xs text-gray-500 mt-1">{purchaseOrders.length} POs</div>
+            <div className="text-xs text-gray-500 mt-1">{approvedPOs.length} approved POs</div>
           </CardContent>
         </Card>
         <Card>

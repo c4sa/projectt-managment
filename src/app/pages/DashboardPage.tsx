@@ -70,11 +70,16 @@ export function DashboardPage() {
   
   const totalProfit = totalRevenue - totalExpenses;
   
-  // Outstanding receivables (invoiced but not yet paid by customers)
-  const totalInvoiced = customerInvoices
-    .filter(inv => inv.status !== 'draft')
-    .reduce((sum, inv) => sum + inv.total, 0);
-  const outstandingReceivables = totalInvoiced - totalRevenue;
+  // Outstanding per Document: Customer Outstanding − Vendor Outstanding (only approved invoices count)
+  const totalCustomerInvoiced = customerInvoices
+    .filter(inv => inv.status === 'approved' || inv.status === 'sent')
+    .reduce((sum, inv) => sum + (inv.total || 0), 0);
+  const customerOutstanding = totalCustomerInvoiced - totalRevenue;
+  const totalVendorInvoiced = vendorInvoices
+    .filter(inv => inv.status === 'approved' || inv.status === 'paid')
+    .reduce((sum, inv) => sum + (inv.total || inv.subtotal || 0), 0);
+  const vendorOutstanding = totalVendorInvoiced - totalExpenses;
+  const netOutstanding = customerOutstanding - vendorOutstanding;
 
   // Percentage changes: this period (month-to-date) vs previous month (full month)
   const now = new Date();
@@ -93,13 +98,19 @@ export function DashboardPage() {
     .reduce((sum, p) => sum + (p.subtotal || p.amount), 0);
   const prevProfit = prevRevenue - prevExpenses;
 
-  const prevInvoiced = customerInvoices
-    .filter(inv => inv.status !== 'draft' && isBeforeStartOfThisMonth(inv.issueDate))
-    .reduce((sum, inv) => sum + inv.total, 0);
+  const prevCustomerInvoiced = customerInvoices
+    .filter(inv => (inv.status === 'approved' || inv.status === 'sent') && isBeforeStartOfThisMonth(inv.issueDate))
+    .reduce((sum, inv) => sum + (inv.total || 0), 0);
   const prevReceived = receiptsPaid
     .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
     .reduce((sum, p) => sum + p.amount, 0);
-  const prevOutstanding = prevInvoiced - prevReceived;
+  const prevVendorInvoiced = vendorInvoices
+    .filter(inv => (inv.status === 'approved' || inv.status === 'paid') && isBeforeStartOfThisMonth(inv.issueDate || inv.invoiceDate))
+    .reduce((sum, inv) => sum + (inv.total || inv.subtotal || 0), 0);
+  const prevVendorPaid = paymentsPaid
+    .filter(p => isBeforeStartOfThisMonth(p.paymentDate))
+    .reduce((sum, p) => sum + (p.subtotal || p.amount), 0);
+  const prevOutstanding = (prevCustomerInvoiced - prevReceived) - (prevVendorInvoiced - prevVendorPaid);
 
   const formatPctChange = (current: number, previous: number, invertGood = false): { text: string; positive: boolean } => {
     if (previous === 0) {
@@ -116,41 +127,33 @@ export function DashboardPage() {
   const revenueChange = formatPctChange(totalRevenue, prevRevenue);
   const expensesChange = formatPctChange(totalExpenses, prevExpenses);
   const profitChange = formatPctChange(totalProfit, prevProfit);
-  const outstandingChange = formatPctChange(outstandingReceivables, prevOutstanding, true);
+  const outstandingChange = formatPctChange(netOutstanding, prevOutstanding, true);
 
   const formatCurrency = (amount: number) => {
     return `${amount.toLocaleString('en-SA')} SAR`;
   };
 
-  // Calculate monthly revenue/expenses trend from real invoice data
+  // Calculate monthly revenue/expenses trend from payments per Document (actual cash flow)
   const getMonthlyTrend = () => {
     const monthlyStats: { [key: string]: { revenue: number; expenses: number } } = {};
     
-    // Process customer invoices (revenue)
-    customerInvoices.forEach(inv => {
-      const date = new Date(inv.issueDate);
+    payments.filter((p: any) => p.type === 'receipt' && p.status === 'paid').forEach((p: any) => {
+      const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
-      if (!monthlyStats[monthKey]) {
-        monthlyStats[monthKey] = { revenue: 0, expenses: 0 };
-      }
-      monthlyStats[monthKey].revenue += inv.total;
+      if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0 };
+      monthlyStats[monthKey].revenue += p.amount || 0;
     });
 
-    // Process vendor invoices (expenses)
-    vendorInvoices.forEach(inv => {
-      const date = new Date(inv.issueDate);
+    payments.filter((p: any) => p.type === 'payment' && p.status === 'paid').forEach((p: any) => {
+      const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
-      if (!monthlyStats[monthKey]) {
-        monthlyStats[monthKey] = { revenue: 0, expenses: 0 };
-      }
-      monthlyStats[monthKey].expenses += inv.total;
+      if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0 };
+      monthlyStats[monthKey].expenses += p.subtotal || p.amount || 0;
     });
 
-    // Convert to array format for charts (last 6 months)
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
     const last6Months = [];
-    
     for (let i = 5; i >= 0; i--) {
       const monthIndex = (currentMonth - i + 12) % 12;
       const monthName = months[monthIndex];
@@ -160,7 +163,6 @@ export function DashboardPage() {
         expenses: monthlyStats[monthName]?.expenses || 0,
       });
     }
-
     return last6Months;
   };
 
@@ -217,7 +219,7 @@ export function DashboardPage() {
     },
     {
       title: t('dashboard.outstanding'),
-      value: formatCurrency(outstandingReceivables),
+      value: formatCurrency(netOutstanding),
       change: outstandingChange.text,
       positive: outstandingChange.positive,
       icon: <AlertCircle className="w-6 h-6" />,

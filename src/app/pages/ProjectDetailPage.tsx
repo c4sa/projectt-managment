@@ -64,6 +64,7 @@ export function ProjectDetailPage() {
   const [totalReserved, setTotalReserved] = useState(0);
   const [totalActualSpent, setTotalActualSpent] = useState(0);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [manpowerMembers, setManpowerMembers] = useState<any[]>([]);
 
   // Load project data
   useEffect(() => {
@@ -94,15 +95,17 @@ export function ProjectDetailPage() {
     const loadFinancialData = async () => {
       if (!id) return;
       
-      const [budgetItems, purchaseOrders, payments, vendorInvoices, variationOrders, tasksData] = await Promise.all([
+      const [budgetItems, purchaseOrders, payments, vendorInvoices, variationOrders, tasksData, manpowerData] = await Promise.all([
         dataStore.getBudgetItems(id),
         dataStore.getPurchaseOrders(id),
         dataStore.getPayments(id),
         dataStore.getVendorInvoices(),
         dataStore.getVariationOrders(),
         dataStore.getTasks(id),
+        dataStore.getManpowerMembers(id),
       ]);
       setTasks(tasksData);
+      setManpowerMembers(manpowerData || []);
       const projectInvoices = vendorInvoices.filter((inv: any) => inv.projectId === id);
       const projectVOs = variationOrders.filter((vo: any) => {
         const po = purchaseOrders.find((p: any) => p.id === vo.poId);
@@ -123,9 +126,9 @@ export function ProjectDetailPage() {
         }
       });
 
-      // Committed invoices: pending, approved, sent, or paid (no 'partially_paid' in invoice status)
+      // Committed invoices: only approved/sent/paid (exclude pending per Document - financial values after approval only)
       projectInvoices.forEach((inv: any) => {
-        if (['pending', 'approved', 'sent', 'paid'].includes(inv.status)) {
+        if (['approved', 'sent', 'paid'].includes(inv.status)) {
           reserved += inv.subtotal || 0;
         }
       });
@@ -208,7 +211,10 @@ export function ProjectDetailPage() {
     );
   }
 
-  const progress = totalBudgeted > 0 ? (totalActualSpent / totalBudgeted) * 100 : 0;
+  // Progress per Document: CompletedTasks ÷ TotalTasks (task completion, not budget spent)
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
+  const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   const handleStatusChange = (newStatus: ProjectStatus) => {
     dataStore.updateProject(project.id, { status: newStatus });
@@ -370,7 +376,7 @@ export function ProjectDetailPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">{t('project.teamMembers')}</p>
-                <p className="font-semibold">{project.teamMembers.length}</p>
+                <p className="font-semibold">{manpowerMembers.length + (project.assignedManagerId ? 1 : 0)}</p>
               </div>
             </div>
           </CardContent>

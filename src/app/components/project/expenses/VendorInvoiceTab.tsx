@@ -794,10 +794,10 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
           <CardContent className="p-6">
             <div className="text-sm text-gray-500 mb-1">Pending Approval</div>
             <div className="text-2xl font-bold text-yellow-600">
-              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'draft').reduce((sum, inv) => sum + (inv.total || 0), 0).toLocaleString()} SAR
+              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'pending_approval').reduce((sum, inv) => sum + (inv.total || 0), 0).toLocaleString()} SAR
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'draft').length} invoices
+              {invoices.filter(inv => inv.status === 'pending' || inv.status === 'pending_approval').length} invoices
             </div>
           </CardContent>
         </Card>

@@ -51,45 +51,40 @@ export function ReportsPage() {
     loadData();
   }, []);
 
-  // Calculate financial metrics from real data
-  const totalRevenue = customerInvoices.reduce((sum, inv) => sum + inv.total, 0);
-  const totalExpenses = vendorInvoices.reduce((sum, inv) => sum + inv.total, 0);
+  // Calculate financial metrics from payments per Document (Revenue/Expenses = actual payments, not invoices)
+  const totalRevenue = payments
+    .filter((p: any) => p.type === 'receipt' && p.status === 'paid')
+    .reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalExpenses = payments
+    .filter((p: any) => p.type === 'payment' && p.status === 'paid')
+    .reduce((sum, p) => sum + (p.subtotal || p.amount || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
 
-  // Calculate month-by-month data from invoices
+  // Calculate month-by-month data from payments per Document (actual cash flow)
   const getMonthlyData = () => {
     const monthlyStats: { [key: string]: { revenue: number; expenses: number; profit: number } } = {};
     
-    // Process customer invoices (revenue)
-    customerInvoices.forEach(inv => {
-      const date = new Date(inv.issueDate);
+    payments.filter((p: any) => p.type === 'receipt' && p.status === 'paid').forEach((p: any) => {
+      const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
-      if (!monthlyStats[monthKey]) {
-        monthlyStats[monthKey] = { revenue: 0, expenses: 0, profit: 0 };
-      }
-      monthlyStats[monthKey].revenue += inv.total;
+      if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0, profit: 0 };
+      monthlyStats[monthKey].revenue += p.amount || 0;
     });
 
-    // Process vendor invoices (expenses)
-    vendorInvoices.forEach(inv => {
-      const date = new Date(inv.issueDate);
+    payments.filter((p: any) => p.type === 'payment' && p.status === 'paid').forEach((p: any) => {
+      const date = new Date(p.paymentDate || p.paidDate || 0);
       const monthKey = date.toLocaleString('en-US', { month: 'short' });
-      if (!monthlyStats[monthKey]) {
-        monthlyStats[monthKey] = { revenue: 0, expenses: 0, profit: 0 };
-      }
-      monthlyStats[monthKey].expenses += inv.total;
+      if (!monthlyStats[monthKey]) monthlyStats[monthKey] = { revenue: 0, expenses: 0, profit: 0 };
+      monthlyStats[monthKey].expenses += p.subtotal || p.amount || 0;
     });
 
-    // Calculate profit for each month
     Object.keys(monthlyStats).forEach(month => {
       monthlyStats[month].profit = monthlyStats[month].revenue - monthlyStats[month].expenses;
     });
 
-    // Convert to array format for charts (last 6 months)
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentMonth = new Date().getMonth();
     const last6Months = [];
-    
     for (let i = 5; i >= 0; i--) {
       const monthIndex = (currentMonth - i + 12) % 12;
       const monthName = months[monthIndex];
@@ -100,7 +95,6 @@ export function ReportsPage() {
         profit: monthlyStats[monthName]?.profit || 0,
       });
     }
-
     return last6Months;
   };
 
