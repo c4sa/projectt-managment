@@ -8,6 +8,7 @@ import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { User, Lock, Save, Globe } from 'lucide-react';
 import { toast } from 'sonner';
+import { signInWithPassword, updatePassword } from '../../lib/authClient';
 
 const STORAGE_KEY_PREFIX = 'core_code_profile_';
 
@@ -66,6 +67,7 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
     new: '',
     confirm: '',
   });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const handleSaveProfile = () => {
     const key = getStorageKey(user?.id);
@@ -74,7 +76,11 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
     onOpenChange(false);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
+    if (!password.current?.trim()) {
+      toast.error('Current password is required');
+      return;
+    }
     if (password.new !== password.confirm) {
       toast.error('New passwords do not match');
       return;
@@ -83,10 +89,37 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
       toast.error('Password must be at least 6 characters');
       return;
     }
-    localStorage.setItem('core_code_password_set', 'true');
-    toast.success('Password changed successfully');
-    setPassword({ current: '', new: '', confirm: '' });
-    onOpenChange(false);
+    const email = user?.email;
+    if (!email) {
+      toast.error('Unable to change password: user email not available');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error: signInError } = await signInWithPassword({
+        email,
+        password: password.current,
+      });
+      if (signInError) {
+        toast.error('Current password is incorrect');
+        setChangingPassword(false);
+        return;
+      }
+      const { error: updateError } = await updatePassword(password.new);
+      if (updateError) {
+        toast.error(updateError.message || 'Failed to change password');
+        setChangingPassword(false);
+        return;
+      }
+      localStorage.setItem('core_code_password_set', 'true');
+      toast.success('Password changed successfully');
+      setPassword({ current: '', new: '', confirm: '' });
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to change password');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   return (
@@ -255,9 +288,9 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleChangePassword} className="bg-[#7A1516] hover:bg-[#5A1012]">
+                <Button onClick={handleChangePassword} disabled={changingPassword} className="bg-[#7A1516] hover:bg-[#5A1012]">
                   <Lock className="w-4 h-4 mr-2" />
-                  Change Password
+                  {changingPassword ? 'Changing...' : 'Change Password'}
                 </Button>
               </div>
             </div>
