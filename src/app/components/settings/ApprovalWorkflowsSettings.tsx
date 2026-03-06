@@ -41,8 +41,8 @@ const DEFAULT_WORKFLOWS: WorkflowConfig[] = [
     enabled: true,
     levels: [
       { level: 1, name: 'Initial Review', roles: ['project_manager', 'finance'], approvers: [], amountThreshold: 10000, required: true },
-      { level: 2, name: 'Finance Approval', roles: ['finance', 'admin'], approvers: [], amountThreshold: 50000, required: true },
-      { level: 3, name: 'Executive Approval', roles: ['admin'], approvers: [], amountThreshold: 100000, required: true },
+      { level: 2, name: 'Finance Approval', roles: ['finance'], approvers: [], amountThreshold: 50000, required: true },
+      { level: 3, name: 'Executive Approval', roles: ['finance'], approvers: [], amountThreshold: 100000, required: true },
     ],
     autoApprovalThreshold: 5000,
     escalationTimeout: 24,
@@ -53,7 +53,7 @@ const DEFAULT_WORKFLOWS: WorkflowConfig[] = [
     description: 'Approval workflow for vendor invoices',
     enabled: true,
     levels: [
-      { level: 1, name: 'Finance Review', roles: ['finance', 'admin'], approvers: [], amountThreshold: 0, required: true },
+      { level: 1, name: 'Finance Review', roles: ['finance'], approvers: [], amountThreshold: 0, required: true },
     ],
     autoApprovalThreshold: 0,
     escalationTimeout: 48,
@@ -65,8 +65,8 @@ const DEFAULT_WORKFLOWS: WorkflowConfig[] = [
     enabled: true,
     levels: [
       { level: 1, name: 'Project Manager Approval', roles: ['project_manager', 'finance'], approvers: [], amountThreshold: 25000, required: true },
-      { level: 2, name: 'Finance Manager Approval', roles: ['finance', 'admin'], approvers: [], amountThreshold: 100000, required: true },
-      { level: 3, name: 'Executive Approval', roles: ['admin'], approvers: [], amountThreshold: 999999999, required: true },
+      { level: 2, name: 'Finance Manager Approval', roles: ['finance'], approvers: [], amountThreshold: 100000, required: true },
+      { level: 3, name: 'Executive Approval', roles: ['finance'], approvers: [], amountThreshold: 999999999, required: true },
     ],
     autoApprovalThreshold: 10000,
     escalationTimeout: 12,
@@ -77,7 +77,7 @@ const DEFAULT_WORKFLOWS: WorkflowConfig[] = [
     description: 'Approval workflow for customer invoices',
     enabled: true,
     levels: [
-      { level: 1, name: 'Finance Approval', roles: ['finance', 'admin'], approvers: [], amountThreshold: 0, required: true },
+      { level: 1, name: 'Finance Approval', roles: ['finance'], approvers: [], amountThreshold: 0, required: true },
     ],
     autoApprovalThreshold: 0,
     escalationTimeout: 24,
@@ -88,7 +88,7 @@ const DEFAULT_WORKFLOWS: WorkflowConfig[] = [
     description: 'Approval workflow for budget modifications',
     enabled: true,
     levels: [
-      { level: 1, name: 'Admin Approval', roles: ['admin'], approvers: [], amountThreshold: 0, required: true },
+      { level: 1, name: 'Finance Approval', roles: ['finance'], approvers: [], amountThreshold: 0, required: true },
     ],
     autoApprovalThreshold: 0,
     escalationTimeout: 24,
@@ -96,6 +96,8 @@ const DEFAULT_WORKFLOWS: WorkflowConfig[] = [
 ];
 
 const BUILTIN_ROLES = ['admin', 'project_manager', 'finance', 'employee'];
+/** Roles that can be assigned to workflow levels. Admin bypasses workflow checks so is excluded. */
+const WORKFLOW_LEVEL_ROLES = ['project_manager', 'finance', 'employee'];
 
 export function ApprovalWorkflowsSettings() {
   const [workflows, setWorkflows] = useState<WorkflowConfig[]>([]);
@@ -335,7 +337,7 @@ export function ApprovalWorkflowsSettings() {
         const newLevel: ApprovalLevel = {
           level: maxLevel + 1,
           name: `Level ${maxLevel + 1}`,
-          roles: ['admin'],
+          roles: ['finance'],
           approvers: [],
           amountThreshold: 0,
           required: true,
@@ -635,7 +637,7 @@ export function ApprovalWorkflowsSettings() {
                                   </SelectTrigger>
                                   <SelectContent>
                                     <div className="px-2 py-1 text-xs font-semibold text-gray-500">Default Roles</div>
-                                    {BUILTIN_ROLES.filter((r) => !level.roles?.includes(r)).map((r) => (
+                                    {WORKFLOW_LEVEL_ROLES.filter((r) => !level.roles?.includes(r)).map((r) => (
                                       <SelectItem key={r} value={r} className="text-xs">
                                         {getRoleLabel(r)}
                                       </SelectItem>

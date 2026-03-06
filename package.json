@@ -8,7 +8,8 @@
     "dev": "vite",
     "dev:server": "node --env-file=.env.local server.js",
     "dev:full": "concurrently \"npm run dev:server\" \"npm run dev\"",
-    "seed:admin": "node --env-file=.env.local scripts/seed-admin.js"
+    "seed:admin": "node --env-file=.env.local scripts/seed-admin.js",
+    "test:workflow": "node --env-file=.env.local scripts/test-workflow-enforcement.js"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

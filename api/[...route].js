@@ -20,6 +20,7 @@
 import { verifyJwt } from '../lib/verifyJwt.js';
 import { supabase } from '../lib/supabase.js';
 import { hasApiPermission, entityToPermission } from '../lib/requirePermission.js';
+import { canApproveByWorkflow } from '../lib/workflowEnforcement.js';
 import {
   customersHandler,
   vendorsHandler,
@@ -385,6 +386,66 @@ export default async function handler(req, res) {
           }
         }
       } catch (_) { /* body parse failed */ }
+    }
+  }
+
+  // ── Workflow enforcement (admin bypasses) ───────────────────────────────────
+  const WORKFLOW_ENTITIES = ['purchase-orders', 'vendorInvoices', 'customerInvoices', 'payments'];
+  const APPROVAL_STATUSES = {
+    'purchase-orders': ['approved'],
+    vendorInvoices: ['approved', 'approved_level1', 'approved_level2'],
+    customerInvoices: ['approved'],
+    payments: ['approved', 'paid'],
+  };
+  if (req.method === 'PUT' && id && WORKFLOW_ENTITIES.includes(entity)) {
+    try {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      const statuses = APPROVAL_STATUSES[entity];
+      if (statuses && statuses.includes(body.status)) {
+        const tables = {
+          'purchase-orders': 'purchase_orders',
+          vendorInvoices: 'vendor_invoices',
+          customerInvoices: 'customer_invoices',
+          payments: 'payments',
+        };
+        const { data: row, error: fetchErr } = await supabase
+          .from(tables[entity])
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (fetchErr || !row) {
+          // Entity not found; let the handler return 404
+        } else {
+          let amount = 0;
+          if (entity === 'purchase-orders') amount = row.total ?? row.subtotal ?? 0;
+          else if (entity === 'vendorInvoices') amount = row.total ?? (Number(row.subtotal || 0) + Number(row.vat_amount || 0)) ?? 0;
+          else if (entity === 'customerInvoices') amount = row.total ?? 0;
+          else if (entity === 'payments') amount = row.amount ?? row.subtotal ?? 0;
+
+          const { data: appUser } = await supabase
+            .from('app_users')
+            .select('role, custom_role_id')
+            .eq('id', payload.sub)
+            .maybeSingle();
+          const userRole = appUser?.role ?? 'employee';
+          const customRoleId = appUser?.custom_role_id || null;
+
+          const { allowed, reason } = await canApproveByWorkflow({
+            entity,
+            amount,
+            userId: payload.sub,
+            userRole,
+            customRoleId,
+            hasRbacApprove: true, // We run after RBAC; caller passed approve/process permission
+          });
+          if (!allowed) {
+            return res.status(403).json({ success: false, error: reason || 'Forbidden: workflow approval requirement not met' });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[workflow] error:', e);
+      // On error, do not block the request; let handler proceed (fail-safe for existing behavior)
     }
   }
 
