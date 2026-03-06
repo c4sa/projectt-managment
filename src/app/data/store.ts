@@ -615,8 +615,9 @@ class DataStore {
 
   // Tasks
   async getTasks(projectId?: string): Promise<Task[]> {
-    const all: Task[] = (await apiCall('/tasks')) ?? [];
-    return projectId ? all.filter((t) => t.projectId === projectId) : all;
+    const url = projectId ? `/tasks?projectId=${encodeURIComponent(projectId)}` : '/tasks';
+    const data: Task[] = (await apiCall(url)) ?? [];
+    return data;
   }
 
   async getTask(id: string): Promise<Task | null> {
@@ -647,8 +648,8 @@ class DataStore {
 
   // Task Groups
   async getTaskGroups(projectId: string): Promise<TaskGroup[]> {
-    const all: TaskGroup[] = (await apiCall('/taskGroups')) ?? [];
-    return all.filter((g) => g.projectId === projectId);
+    const data: TaskGroup[] = (await apiCall(`/taskGroups?projectId=${encodeURIComponent(projectId)}`)) ?? [];
+    return data;
   }
 
   async addTaskGroup(group: Omit<TaskGroup, 'id'>): Promise<TaskGroup> {
@@ -665,11 +666,10 @@ class DataStore {
   }
 
   // Budget Items
-  async getBudgetItems(projectId: string): Promise<BudgetItem[]> {
-    const all: BudgetItem[] = (await apiCall('/budgetItems')) ?? [];
-    return all
-      .filter((b) => b.projectId === projectId)
-      .map((item) => ({ ...item, reserved: item.reserved || 0 }));
+  async getBudgetItems(projectId?: string): Promise<BudgetItem[]> {
+    const url = projectId ? `/budgetItems?projectId=${encodeURIComponent(projectId)}` : '/budgetItems';
+    const data: BudgetItem[] = (await apiCall(url)) ?? [];
+    return data.map((item) => ({ ...item, reserved: item.reserved || 0 }));
   }
 
   async addBudgetItem(item: Omit<BudgetItem, 'id' | 'createdAt'>): Promise<BudgetItem> {
@@ -702,8 +702,7 @@ class DataStore {
     }
 
     // Only check invoices from the same project; block only when invoice explicitly references this specific budget item
-    const allInvoices: VendorInvoice[] = await this.getVendorInvoices();
-    const projectInvoices = allInvoices.filter((inv) => inv.projectId === projectId);
+    const projectInvoices: VendorInvoice[] = await this.getVendorInvoices(undefined, projectId);
     const referencedInInvoice = projectInvoices.some((inv) => {
       if (inv.items && Array.isArray(inv.items)) {
         return inv.items.some((li: any) => li.budgetItem === itemIdentifier);
@@ -791,8 +790,9 @@ class DataStore {
 
   // Purchase Orders
   async getPurchaseOrders(projectId?: string): Promise<PurchaseOrder[]> {
-    const all: PurchaseOrder[] = (await apiCall('/purchase-orders')) ?? [];
-    return projectId ? all.filter((po) => po.projectId === projectId) : all;
+    const url = projectId ? `/purchase-orders?projectId=${encodeURIComponent(projectId)}` : '/purchase-orders';
+    const data: PurchaseOrder[] = (await apiCall(url)) ?? [];
+    return data;
   }
 
   // Kept for compatibility — components should migrate to async getPurchaseOrders()
@@ -825,9 +825,14 @@ class DataStore {
   }
 
   // Variation Orders
-  async getVariationOrders(poId?: string): Promise<VariationOrder[]> {
-    const all: VariationOrder[] = (await apiCall('/variationOrders')) ?? [];
-    return poId ? all.filter((vo) => vo.poId === poId) : all;
+  async getVariationOrders(poId?: string, projectId?: string): Promise<VariationOrder[]> {
+    const params = new URLSearchParams();
+    if (poId) params.set('poId', poId);
+    if (projectId) params.set('projectId', projectId);
+    const query = params.toString();
+    const url = query ? `/variationOrders?${query}` : '/variationOrders';
+    const data: VariationOrder[] = (await apiCall(url)) ?? [];
+    return data;
   }
 
   async addVariationOrder(vo: Omit<VariationOrder, 'id' | 'createdAt' | 'voNumber'>): Promise<VariationOrder> {
@@ -841,9 +846,14 @@ class DataStore {
   }
 
   // Vendor Invoices
-  async getVendorInvoices(vendorId?: string): Promise<VendorInvoice[]> {
-    const all: VendorInvoice[] = (await apiCall('/vendorInvoices')) ?? [];
-    return vendorId ? all.filter((i) => i.vendorId === vendorId) : all;
+  async getVendorInvoices(vendorId?: string, projectId?: string): Promise<VendorInvoice[]> {
+    const params = new URLSearchParams();
+    if (vendorId) params.set('vendorId', vendorId);
+    if (projectId) params.set('projectId', projectId);
+    const query = params.toString();
+    const url = query ? `/vendorInvoices?${query}` : '/vendorInvoices';
+    const data: VendorInvoice[] = (await apiCall(url)) ?? [];
+    return data;
   }
 
   // Kept for compatibility — components should migrate to async getVendorInvoices()
@@ -883,9 +893,14 @@ class DataStore {
   }
 
   // Customer Invoices
-  async getCustomerInvoices(customerId?: string): Promise<CustomerInvoice[]> {
-    const all: CustomerInvoice[] = (await apiCall('/customerInvoices')) ?? [];
-    return customerId ? all.filter((i) => i.customerId === customerId) : all;
+  async getCustomerInvoices(customerId?: string, projectId?: string): Promise<CustomerInvoice[]> {
+    const params = new URLSearchParams();
+    if (customerId) params.set('customerId', customerId);
+    if (projectId) params.set('projectId', projectId);
+    const query = params.toString();
+    const url = query ? `/customerInvoices?${query}` : '/customerInvoices';
+    const data: CustomerInvoice[] = (await apiCall(url)) ?? [];
+    return data;
   }
 
   // Kept for compatibility — components should migrate to async getCustomerInvoices()
@@ -925,8 +940,9 @@ class DataStore {
 
   // Payments
   async getPayments(projectId?: string): Promise<Payment[]> {
-    const all: Payment[] = (await apiCall('/payments')) ?? [];
-    return projectId ? all.filter((p) => p.projectId === projectId) : all;
+    const url = projectId ? `/payments?projectId=${encodeURIComponent(projectId)}` : '/payments';
+    const data: Payment[] = (await apiCall(url)) ?? [];
+    return data;
   }
 
   async generatePaymentNumber(): Promise<string> {
@@ -1164,8 +1180,8 @@ class DataStore {
 
   // Manpower Members
   async getManpowerMembers(projectId: string): Promise<ManpowerMember[]> {
-    const all: ManpowerMember[] = (await apiCall('/manpowerMembers')) ?? [];
-    return all.filter((m) => m.projectId === projectId);
+    const data: ManpowerMember[] = (await apiCall(`/manpowerMembers?projectId=${encodeURIComponent(projectId)}`)) ?? [];
+    return data;
   }
 
   async addManpowerMember(member: Omit<ManpowerMember, 'id' | 'createdAt'>): Promise<ManpowerMember> {

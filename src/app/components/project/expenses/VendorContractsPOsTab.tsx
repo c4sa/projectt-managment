@@ -89,9 +89,8 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
     const budgetData = await dataStore.getBudgetItems(projectId);
     setBudgetItems(budgetData);
 
-    const invoicesData = await dataStore.getVendorInvoices();
-    const projectInvoices = invoicesData.filter((inv: any) => inv.projectId === projectId);
-    setInvoices(projectInvoices);
+    const invoicesData = await dataStore.getVendorInvoices(undefined, projectId);
+    setInvoices(invoicesData);
 
     const paymentsData = await dataStore.getPayments(projectId);
     setPayments(paymentsData);

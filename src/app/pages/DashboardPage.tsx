@@ -69,6 +69,9 @@ export function DashboardPage() {
         setPurchaseOrders(posData);
         setVendorInvoices(vendorInvoicesData);
         setCustomerInvoices(customerInvoicesData);
+        const canViewBudget = hasPermission('budget', 'view');
+        const canViewPayments = hasPermission('payments', 'view');
+
         if (!projectsData?.length) {
           setProjectBudgetData([]);
           setProjectsWithProgress([]);
@@ -76,46 +79,37 @@ export function DashboardPage() {
           return;
         }
 
-        // Payments per project: only when view_financial
-        let paymentsArrays: any[][] = [];
+        let allPayments: any[] = [];
+        let allTasks: any[] = [];
+        let allBudgetItems: any[] = [];
+        const batchFetches: Promise<any>[] = [dataStore.getTasks()];
         if (canViewFinancial) {
-          paymentsArrays = await Promise.all(
-            projectsData.map((project: Project) => dataStore.getPayments(project.id))
-          );
-          setPayments(paymentsArrays.flat());
+          batchFetches.push(dataStore.getPayments());
+          if (canViewBudget) batchFetches.push(dataStore.getBudgetItems());
+        }
+        const batchResults = await Promise.all(batchFetches);
+        allTasks = batchResults[0] ?? [];
+        if (canViewFinancial) {
+          allPayments = batchResults[1] ?? [];
+          allBudgetItems = (batchResults[2] ?? []) as any[];
+          setPayments(allPayments);
         }
 
-        // Second pass: budget items + tasks for displayed projects (per Document: Budget = Sum(BudgetItems), Spent = Sum(Paid Vendor Payments), Progress = CompletedTasks/TotalTasks)
         const displayed = canViewAllProjects ? projectsData : projectsData.filter((p: Project) => isAssignedToProject(p));
         const forChartAndRecent = displayed.slice(0, 5);
 
-        const canViewBudget = hasPermission('budget', 'view');
-        const canViewPayments = hasPermission('payments', 'view');
-
-        const budgetAndTasks = await Promise.all(
-          forChartAndRecent.map(async (project: Project) => {
-            const idx = projectsData.findIndex((p: Project) => p.id === project.id);
-            const projectPayments = (idx >= 0 && canViewFinancial ? paymentsArrays[idx] : []) || [];
-            let budget = 0;
-            let tasks: any[] = [];
-            if (canViewBudget && canViewFinancial) {
-              const [budgetItems, tasksData] = await Promise.all([
-                dataStore.getBudgetItems(project.id),
-                dataStore.getTasks(project.id),
-              ]);
-              budget = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
-              tasks = tasksData;
-            } else {
-              tasks = await dataStore.getTasks(project.id);
-            }
-            const paidPayments = projectPayments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
-            const spent = canViewPayments ? paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount || 0), 0) : 0;
-            const totalTasks = tasks.length;
-            const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
-            const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-            return { project, budget, spent, progress };
-          })
-        );
+        const budgetAndTasks = forChartAndRecent.map((project: Project) => {
+          const projectPayments = canViewFinancial ? allPayments.filter((p: any) => p.projectId === project.id) : [];
+          const projectTasks = allTasks.filter((t: any) => t.projectId === project.id);
+          const projectBudgetItems = canViewBudget && canViewFinancial ? allBudgetItems.filter((b: any) => b.projectId === project.id) : [];
+          const budget = projectBudgetItems.reduce((sum: number, item: any) => sum + item.budgeted, 0);
+          const paidPayments = projectPayments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
+          const spent = canViewPayments ? paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount || 0), 0) : 0;
+          const totalTasks = projectTasks.length;
+          const completedTasks = projectTasks.filter((t: any) => t.status === 'done').length;
+          const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+          return { project, budget, spent, progress };
+        });
         setProjectBudgetData(budgetAndTasks.map(({ project, budget, spent }) => ({
           name: project.code,
           budget,

@@ -161,7 +161,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
   };
 
   const loadInvoiceDetails = async (invoiceId: string) => {
-    const invoicesData = await dataStore.getVendorInvoices();
+    const invoicesData = await dataStore.getVendorInvoices(undefined, projectId);
     const invoice = invoicesData.find((inv: any) => inv.id === invoiceId);
     if (invoice) {
       setSelectedInvoice(invoice);
@@ -211,9 +211,8 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
     const pos = await dataStore.getPurchaseOrders(projectId);
     setPurchaseOrders(pos);
 
-    const invoicesData = await dataStore.getVendorInvoices();
-    const projectInvoices = invoicesData.filter((inv: any) => inv.projectId === projectId);
-    setInvoices(projectInvoices);
+    const invoicesData = await dataStore.getVendorInvoices(undefined, projectId);
+    setInvoices(invoicesData);
   };
 
   const handleLineItemPaymentChange = (index: number, field: string, value: any) => {

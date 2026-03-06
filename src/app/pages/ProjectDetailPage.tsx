@@ -119,18 +119,15 @@ export function ProjectDetailPage() {
         dataStore.getBudgetItems(id),
         dataStore.getPurchaseOrders(id),
         dataStore.getPayments(id),
-        dataStore.getVendorInvoices(),
-        dataStore.getVariationOrders(),
+        dataStore.getVendorInvoices(undefined, id),
+        dataStore.getVariationOrders(undefined, id),
         dataStore.getTasks(id),
         dataStore.getManpowerMembers(id),
       ]);
       setTasks(tasksData);
       setManpowerMembers(manpowerData || []);
-      const projectInvoices = vendorInvoices.filter((inv: any) => inv.projectId === id);
-      const projectVOs = variationOrders.filter((vo: any) => {
-        const po = purchaseOrders.find((p: any) => p.id === vo.poId);
-        return po && po.projectId === id;
-      });
+      const projectInvoices = vendorInvoices;
+      const projectVOs = variationOrders;
       
       // Calculate total budgeted
       const budgeted = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
@@ -169,7 +166,7 @@ export function ProjectDetailPage() {
     };
     
     loadFinancialData();
-  }, [id, refreshKey, activeTab]);
+  }, [id, refreshKey]);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

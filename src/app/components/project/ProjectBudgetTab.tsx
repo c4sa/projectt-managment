@@ -65,21 +65,14 @@ export function ProjectBudgetTab({ projectId, project }: Props) {
         
         const [paymentsData, vos, invoices, budgetItemsData, cats] = await Promise.all([
           dataStore.getPayments(projectId),
-          dataStore.getVariationOrders(),
-          dataStore.getVendorInvoices(),
+          dataStore.getVariationOrders(undefined, projectId),
+          dataStore.getVendorInvoices(undefined, projectId),
           dataStore.getBudgetItems(projectId),
           dataStore.getBudgetCategories(),
         ]);
         setPayments(paymentsData);
-
-        const projectVOs = vos.filter((vo: any) => {
-          const po = pos.find((p: any) => p.id === vo.poId);
-          return po && po.projectId === projectId;
-        });
-        setVariationOrders(projectVOs);
-
-        const projectInvoices = invoices.filter((inv: any) => inv.projectId === projectId);
-        setVendorInvoices(projectInvoices);
+        setVariationOrders(vos);
+        setVendorInvoices(invoices);
 
         setBudgetItems(budgetItemsData);
         setCategories(cats);

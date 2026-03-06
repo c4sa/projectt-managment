@@ -48,8 +48,7 @@ export function ProjectInformationTab({ project, canEdit = true, refreshWhenVisi
     if (!refreshWhenVisible || !project?.id) return;
     const calculateCustomerFinancials = async () => {
       try {
-        const allInvoices = await dataStore.getCustomerInvoices();
-        const projectInvoices = allInvoices.filter((inv: any) => inv.projectId === project.id);
+        const projectInvoices = await dataStore.getCustomerInvoices(undefined, project.id);
         const getInvoiceAmount = (inv: any) => (inv.total ?? (Number(inv.subtotal ?? 0) + Number(inv.vatAmount ?? 0))) ?? 0;
         const invoiced = projectInvoices
           .filter((inv: any) => inv.status === 'approved' || inv.status === 'sent' || inv.status === 'paid')

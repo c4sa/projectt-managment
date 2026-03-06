@@ -66,8 +66,7 @@ export function CustomerInvoiceTab({ projectId, onRequestPayment }: Props) {
     const customersData = await dataStore.getCustomers();
     setCustomers(customersData);
 
-    const invoicesData = await dataStore.getCustomerInvoices();
-    const projectInvoices = invoicesData.filter((inv: any) => inv.projectId === projectId);
+    const projectInvoices = await dataStore.getCustomerInvoices(undefined, projectId);
     
     // Get payments to calculate amounts paid
     const paymentsData = await dataStore.getPayments(projectId);

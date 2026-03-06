@@ -66,31 +66,37 @@ export function ProjectsPage() {
     ]);
     setProjects(projectsData);
     setCustomers(customersData);
-    // Show project cards immediately with base data, then update with calcs
     setProjectsWithCalculations(projectsData);
     setIsLoading(false);
 
-    // Fetch all tasks once for progress (per Document: Progress = CompletedTasks/TotalTasks)
     let allTasks: any[] = [];
+    let allBudgetItems: any[] = [];
+    let allPayments: any[] = [];
     try {
-      allTasks = (await dataStore.getTasks()) ?? [];
+      const fetches: Promise<any>[] = [dataStore.getTasks()];
+      if (canViewBudget && canViewPayments) {
+        fetches.push(dataStore.getBudgetItems(), dataStore.getPayments());
+      }
+      const results = await Promise.all(fetches);
+      allTasks = (results[0] ?? []) as any[];
+      if (canViewBudget && canViewPayments && results.length >= 3) {
+        allBudgetItems = (results[1] ?? []) as any[];
+        allPayments = (results[2] ?? []) as any[];
+      }
     } catch {
-      // If tasks fetch fails (e.g. permission), progress will be 0
+      // If fetch fails (e.g. permission), progress/budget/spent will be 0
     }
 
-    // Only fetch budget/payments when user has permission (avoids 403 for Employee)
-    const withCalcs = await Promise.all(projectsData.map(async (project) => {
+    const withCalcs = projectsData.map((project) => {
       const projectTasks = allTasks.filter((t: any) => t.projectId === project.id);
       const completedTasks = projectTasks.filter((t: any) => t.status === 'done').length;
       const progress = projectTasks.length > 0 ? (completedTasks / projectTasks.length) * 100 : 0;
 
       if (canViewBudget && canViewPayments) {
-        const [budgetItems, payments] = await Promise.all([
-          dataStore.getBudgetItems(project.id),
-          dataStore.getPayments(project.id),
-        ]);
-        const totalBudgeted = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
-        const paidPayments = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
+        const projectBudgetItems = allBudgetItems.filter((b: any) => b.projectId === project.id);
+        const projectPayments = allPayments.filter((p: any) => p.projectId === project.id);
+        const totalBudgeted = projectBudgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+        const paidPayments = projectPayments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
         const totalSpent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
         return {
           ...project,
@@ -105,7 +111,7 @@ export function ProjectsPage() {
         spent: 0,
         progress,
       };
-    }));
+    });
     setProjectsWithCalculations(withCalcs);
   };
 
