@@ -153,6 +153,8 @@ BEGIN
       (gen_random_uuid()::text, 'finance', 'projects', 'view_all', true),
       (gen_random_uuid()::text, 'finance', 'vendors', 'view', true),
       (gen_random_uuid()::text, 'finance', 'customers', 'view', true),
+      (gen_random_uuid()::text, 'finance', 'tasks', 'view', true),
+      (gen_random_uuid()::text, 'finance', 'budget', 'view', true),
       (gen_random_uuid()::text, 'finance', 'settings', 'view', true);
 
     -- Employee: limited - view dashboard, projects, documents, tasks (view + update_status)
@@ -160,6 +162,8 @@ BEGIN
       (gen_random_uuid()::text, 'employee', 'dashboard', 'view', true),
       (gen_random_uuid()::text, 'employee', 'projects', 'view', true),
       (gen_random_uuid()::text, 'employee', 'projects', 'view_all', true),
+      (gen_random_uuid()::text, 'employee', 'customers', 'view', true),
+      (gen_random_uuid()::text, 'employee', 'vendors', 'view', true),
       (gen_random_uuid()::text, 'employee', 'documents', 'view', true),
       (gen_random_uuid()::text, 'employee', 'documents', 'download', true),
       (gen_random_uuid()::text, 'employee', 'tasks', 'view', true),

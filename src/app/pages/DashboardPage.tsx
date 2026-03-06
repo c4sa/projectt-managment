@@ -32,41 +32,84 @@ export function DashboardPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [projectsData, vendorsData, customersData, posData, vendorInvoicesData, customerInvoicesData] = await Promise.all([
-          dataStore.getProjects(),
-          dataStore.getVendors(),
-          dataStore.getCustomers(),
-          dataStore.getPurchaseOrders(),
-          dataStore.getVendorInvoices(),
-          dataStore.getCustomerInvoices(),
-        ]);
-        setProjects(projectsData);
-        setVendors(vendorsData);
-        setCustomers(customersData);
+        // Core data: always fetch projects, vendors, customers (all roles with dashboard.view)
+        // Financial data: only fetch when user has view_financial (avoids 403 for Employee)
+        let projectsData: Project[] = [];
+        let posData: PurchaseOrder[] = [];
+        let vendorInvoicesData: VendorInvoice[] = [];
+        let customerInvoicesData: CustomerInvoice[] = [];
+
+        if (canViewFinancial) {
+          const [p, vendorsData, customersData, pos, vi, ci] = await Promise.all([
+            dataStore.getProjects(),
+            dataStore.getVendors(),
+            dataStore.getCustomers(),
+            dataStore.getPurchaseOrders(),
+            dataStore.getVendorInvoices(),
+            dataStore.getCustomerInvoices(),
+          ]);
+          projectsData = p;
+          setProjects(p);
+          setVendors(vendorsData);
+          setCustomers(customersData);
+          posData = pos;
+          vendorInvoicesData = vi;
+          customerInvoicesData = ci;
+        } else {
+          const [p, vendorsData, customersData] = await Promise.all([
+            dataStore.getProjects(),
+            dataStore.getVendors(),
+            dataStore.getCustomers(),
+          ]);
+          projectsData = p;
+          setProjects(p);
+          setVendors(vendorsData);
+          setCustomers(customersData);
+        }
         setPurchaseOrders(posData);
         setVendorInvoices(vendorInvoicesData);
         setCustomerInvoices(customerInvoicesData);
+        if (!projectsData?.length) {
+          setProjectBudgetData([]);
+          setProjectsWithProgress([]);
+          setIsLoading(false);
+          return;
+        }
 
-        // Load all payments per project for revenue and per-project spent
-        const paymentsArrays = await Promise.all(
-          projectsData.map((project: Project) => dataStore.getPayments(project.id))
-        );
-        setPayments(paymentsArrays.flat());
+        // Payments per project: only when view_financial
+        let paymentsArrays: any[][] = [];
+        if (canViewFinancial) {
+          paymentsArrays = await Promise.all(
+            projectsData.map((project: Project) => dataStore.getPayments(project.id))
+          );
+          setPayments(paymentsArrays.flat());
+        }
 
         // Second pass: budget items + tasks for displayed projects (per Document: Budget = Sum(BudgetItems), Spent = Sum(Paid Vendor Payments), Progress = CompletedTasks/TotalTasks)
         const displayed = canViewAllProjects ? projectsData : projectsData.filter((p: Project) => isAssignedToProject(p));
         const forChartAndRecent = displayed.slice(0, 5);
+
+        const canViewBudget = hasPermission('budget', 'view');
+        const canViewPayments = hasPermission('payments', 'view');
+
         const budgetAndTasks = await Promise.all(
           forChartAndRecent.map(async (project: Project) => {
             const idx = projectsData.findIndex((p: Project) => p.id === project.id);
-            const projectPayments = (idx >= 0 ? paymentsArrays[idx] : []) || [];
-            const [budgetItems, tasks] = await Promise.all([
-              dataStore.getBudgetItems(project.id),
-              dataStore.getTasks(project.id),
-            ]);
-            const budget = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+            const projectPayments = (idx >= 0 && canViewFinancial ? paymentsArrays[idx] : []) || [];
+            let budget = 0;
+            let tasks: any[] = [];
+            if (canViewBudget && canViewFinancial) {
+              const [budgetItems, tasksData] = await Promise.all([
+                dataStore.getBudgetItems(project.id),
+                dataStore.getTasks(project.id),
+              ]);
+              budget = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+              tasks = tasksData;
+            } else {
+              tasks = await dataStore.getTasks(project.id);
+            }
             const paidPayments = projectPayments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
-            const spent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount || 0), 0);
+            const spent = canViewPayments ? paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount || 0), 0) : 0;
             const totalTasks = tasks.length;
             const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
             const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
@@ -86,7 +129,7 @@ export function DashboardPage() {
       }
     };
     loadData();
-  }, [canViewAllProjects, user?.id]);
+  }, [canViewAllProjects, canViewFinancial, user?.id]);
 
   // Calculate KPIs - Use actual payments for revenue
   // Per Document: Revenue = Sum(CustomerPayments where status=Approved), Expenses = Sum(VendorPayments where status=Approved)

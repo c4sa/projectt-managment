@@ -45,6 +45,8 @@ export function ProjectsPage() {
   const canViewAllProjects = hasPermission('projects', 'view_all');
   const canDeleteProject = hasPermission('projects', 'delete');
   const canArchiveProject = hasPermission('projects', 'archive');
+  const canViewBudget = hasPermission('budget', 'view');
+  const canViewPayments = hasPermission('payments', 'view');
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsWithCalculations, setProjectsWithCalculations] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -68,18 +70,26 @@ export function ProjectsPage() {
     setProjectsWithCalculations(projectsData);
     setIsLoading(false);
 
-    const withCalcs = await Promise.all(projectsData.map(async project => {
-      const [budgetItems, payments] = await Promise.all([
-        dataStore.getBudgetItems(project.id),
-        dataStore.getPayments(project.id),
-      ]);
-      const totalBudgeted = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
-      const paidPayments = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
-      const totalSpent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
+    // Only fetch budget/payments when user has permission (avoids 403 for Employee)
+    const withCalcs = await Promise.all(projectsData.map(async (project) => {
+      if (canViewBudget && canViewPayments) {
+        const [budgetItems, payments] = await Promise.all([
+          dataStore.getBudgetItems(project.id),
+          dataStore.getPayments(project.id),
+        ]);
+        const totalBudgeted = budgetItems.reduce((sum, item) => sum + item.budgeted, 0);
+        const paidPayments = payments.filter((p: any) => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'));
+        const totalSpent = paidPayments.reduce((sum: number, p: any) => sum + (p.subtotal || p.amount), 0);
+        return {
+          ...project,
+          budget: totalBudgeted > 0 ? totalBudgeted : project.budget,
+          spent: totalSpent,
+        };
+      }
       return {
         ...project,
-        budget: totalBudgeted > 0 ? totalBudgeted : project.budget,
-        spent: totalSpent,
+        budget: project.budget ?? 0,
+        spent: 0,
       };
     }));
     setProjectsWithCalculations(withCalcs);
