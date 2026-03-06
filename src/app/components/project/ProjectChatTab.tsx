@@ -15,6 +15,7 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 
 interface ProjectChatTabProps {
   projectId: string;
@@ -25,6 +26,8 @@ interface ProjectChatTabProps {
 export function ProjectChatTab({ projectId, projectName, teamMemberCount }: ProjectChatTabProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { hasPermission } = usePermissionsMatrix();
+  const canDeleteMessages = hasPermission('documents', 'delete');
   const [messages, setMessages] = useState<ProjectChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -217,6 +220,7 @@ export function ProjectChatTab({ projectId, projectName, teamMemberCount }: Proj
                                   <Edit className="w-4 h-4 mr-2" />
                                   {t('common.edit')}
                                 </DropdownMenuItem>
+                                {canDeleteMessages && (
                                 <DropdownMenuItem
                                   onClick={() => handleDelete(msg.id)}
                                   className="text-red-600"
@@ -224,6 +228,7 @@ export function ProjectChatTab({ projectId, projectName, teamMemberCount }: Proj
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   {t('common.delete')}
                                 </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

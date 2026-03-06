@@ -17,6 +17,7 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { usePermissionsMatrix } from '../../contexts/PermissionsMatrixContext';
 
 interface DocumentChatThreadProps {
   documentId: string;
@@ -26,6 +27,8 @@ interface DocumentChatThreadProps {
 export function DocumentChatThread({ documentId, documentName }: DocumentChatThreadProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { hasPermission } = usePermissionsMatrix();
+  const canDeleteComments = hasPermission('documents', 'delete');
   const [comments, setComments] = useState<DocumentComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -204,6 +207,7 @@ export function DocumentChatThread({ documentId, documentName }: DocumentChatThr
                                   <Edit className="w-4 h-4 mr-2" />
                                   {t('common.edit')}
                                 </DropdownMenuItem>
+                                {canDeleteComments && (
                                 <DropdownMenuItem
                                   onClick={() => handleDeleteComment(comment.id)}
                                   className="text-red-600"
@@ -211,6 +215,7 @@ export function DocumentChatThread({ documentId, documentName }: DocumentChatThr
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   {t('common.delete')}
                                 </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

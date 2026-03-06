@@ -19,6 +19,7 @@ export function EmployeesPage() {
   const { t } = useLanguage();
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('employees', 'view');
+  const canViewAll = hasPermission('employees', 'view_all');
   const canCreate = hasPermission('employees', 'create');
   const canEdit = hasPermission('employees', 'edit');
   const canDelete = hasPermission('employees', 'delete');
@@ -457,6 +458,26 @@ export function EmployeesPage() {
                             {new Date(employee.joiningDate).toLocaleDateString()}
                           </div>
                         )}
+                        {canViewAll && employee.idNumber && (
+                          <div>
+                            <span className="font-medium">ID Number:</span> {employee.idNumber}
+                          </div>
+                        )}
+                        {canViewAll && employee.passportNumber && (
+                          <div>
+                            <span className="font-medium">Passport:</span> {employee.passportNumber}
+                          </div>
+                        )}
+                        {canViewAll && (employee.bankName || employee.iban) && (
+                          <div>
+                            <span className="font-medium">Bank:</span> {employee.bankName || '-'} {employee.iban && `• ${employee.iban}`}
+                          </div>
+                        )}
+                        {canViewAll && (employee.emergencyContact || employee.emergencyPhone) && (
+                          <div>
+                            <span className="font-medium">Emergency:</span> {employee.emergencyContact || '-'} {employee.emergencyPhone && `• ${employee.emergencyPhone}`}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2 ml-4">
@@ -601,6 +622,8 @@ export function EmployeesPage() {
                 />
               </div>
 
+              {canViewAll && (
+                <>
               <div className="space-y-2">
                 <Label>ID Number (Iqama/National ID)</Label>
                 <Input
@@ -618,6 +641,8 @@ export function EmployeesPage() {
                   placeholder="Enter passport number"
                 />
               </div>
+                </>
+              )}
 
               <div className="space-y-2 md:col-span-2">
                 <Label>Address</Label>
@@ -629,7 +654,9 @@ export function EmployeesPage() {
                 />
               </div>
 
-              {/* Banking Information */}
+              {/* Banking Information - view_all only */}
+              {canViewAll && (
+                <>
               <div className="md:col-span-2">
                 <h3 className="font-semibold text-sm text-gray-700 border-b pb-2 mb-4 mt-4">Banking Information</h3>
               </div>
@@ -674,6 +701,8 @@ export function EmployeesPage() {
                   placeholder="+966 50 123 4567"
                 />
               </div>
+                </>
+              )}
 
               {/* Notes */}
               <div className="space-y-2 md:col-span-2">

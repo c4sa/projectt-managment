@@ -468,7 +468,7 @@ export function VendorInvoiceTab({ projectId, onRequestPayment }: Props) {
 
   const isAdmin = user?.role === 'admin';
   const canSendForApproval = !isAdmin && selectedInvoice?.status === 'pending';
-  const canApproveOrReject = (canApproveInvoice || canRejectInvoice) && isAdmin && (selectedInvoice?.status === 'pending' || selectedInvoice?.status === 'pending_approval');
+  const canApproveOrReject = (canApproveInvoice || canRejectInvoice) && (selectedInvoice?.status === 'pending' || selectedInvoice?.status === 'pending_approval');
   const canEdit = canEditInvoice && (selectedInvoice?.status === 'pending' || (isAdmin && selectedInvoice?.status === 'approved'));
   const isApproved = selectedInvoice?.status === 'approved';
   const canRequestPayment = canCreatePayment && selectedInvoice?.status && !['draft', 'pending', 'pending_approval', 'rejected', 'paid'].includes(selectedInvoice.status);

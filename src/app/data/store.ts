@@ -449,6 +449,7 @@ export interface Document {
   filePath?: string;
   version?: number;
   tags?: string[];
+  permissions?: Record<string, string[] | boolean>; // e.g. { view: ["userId1"], download: ["userId1","userId2"] } or { public: true }
 }
 
 export interface DocumentFolder {
@@ -903,6 +904,10 @@ class DataStore {
     return await apiCall(`/customerInvoices/${id}`, 'PUT', updates);
   }
 
+  async deleteCustomerInvoice(id: string): Promise<void> {
+    await apiCall(`/customerInvoices/${id}`, 'DELETE');
+  }
+
   // Payment Requests
   async getPaymentRequests(): Promise<PaymentRequest[]> {
     return (await apiCall('/paymentRequests')) ?? [];
@@ -962,6 +967,10 @@ class DataStore {
   async addDocument(doc: Omit<Document, 'id'>): Promise<Document> {
     const newDoc = { ...doc, id: Date.now().toString() };
     return await apiCall('/documents', 'POST', newDoc);
+  }
+
+  async updateDocument(id: string, updates: Partial<Pick<Document, 'permissions' | 'name' | 'type'>>): Promise<Document> {
+    return await apiCall(`/documents/${id}`, 'PUT', updates);
   }
 
   async deleteDocument(id: string): Promise<void> {

@@ -6,7 +6,11 @@ import { Label } from '../ui/label';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-export function BudgetCategoriesSettings() {
+interface BudgetCategoriesSettingsProps {
+  canEdit?: boolean;
+}
+
+export function BudgetCategoriesSettings({ canEdit = true }: BudgetCategoriesSettingsProps) {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -90,28 +94,30 @@ export function BudgetCategoriesSettings() {
       </div>
 
       {/* Add New Category */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <Label className="mb-2">Add New Category</Label>
-        <div className="flex gap-2">
-          <Input
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            placeholder="Enter category name"
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                handleAddCategory();
-              }
-            }}
-          />
-          <Button 
-            onClick={handleAddCategory}
-            className="bg-[#7A1516] hover:bg-[#5A1012]"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add
-          </Button>
+      {canEdit && (
+        <div className="bg-gray-50 rounded-lg p-4">
+          <Label className="mb-2">Add New Category</Label>
+          <div className="flex gap-2">
+            <Input
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="Enter category name"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleAddCategory();
+                }
+              }}
+            />
+            <Button 
+              onClick={handleAddCategory}
+              className="bg-[#7A1516] hover:bg-[#5A1012]"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Categories List */}
       <div className="border rounded-lg overflow-hidden">
@@ -126,7 +132,7 @@ export function BudgetCategoriesSettings() {
           ) : (
             categories.map((category, index) => (
               <div key={index} className="p-4 flex items-center justify-between hover:bg-gray-50">
-                {editingIndex === index ? (
+                {editingIndex === index && canEdit ? (
                   <div className="flex-1 flex items-center gap-2">
                     <Input
                       value={editingValue}
@@ -163,24 +169,26 @@ export function BudgetCategoriesSettings() {
                     <div className="flex-1">
                       <span className="font-medium">{category}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => startEditing(index)}
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRemoveCategory(category)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    {canEdit && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => startEditing(index)}
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveCategory(category)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

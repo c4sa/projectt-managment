@@ -25,6 +25,7 @@ export function SettingsPage() {
   const canEditSystem = hasPermission('settings', 'edit_system');
   const canManageUsers = hasPermission('settings', 'manage_users');
   const canManageRoles = hasPermission('settings', 'manage_roles');
+  const canManageCategories = hasPermission('budget', 'manage_categories');
   const { language, setLanguage, t } = useLanguage();
 
   const [profile, setProfile] = useState({
@@ -95,14 +96,18 @@ export function SettingsPage() {
             <Building2 className="w-4 h-4 mr-2" />
             {t('settings.company')}
           </TabsTrigger>
-          <TabsTrigger value="numberSequences">
-            <Hash className="w-4 h-4 mr-2" />
-            {t('settings.numberSequences')}
-          </TabsTrigger>
-          <TabsTrigger value="budgetCategories">
-            <FolderTree className="w-4 h-4 mr-2" />
-            {t('settings.budgetCategories')}
-          </TabsTrigger>
+          {canEditSystem && (
+            <TabsTrigger value="numberSequences">
+              <Hash className="w-4 h-4 mr-2" />
+              {t('settings.numberSequences')}
+            </TabsTrigger>
+          )}
+          {canManageCategories && (
+            <TabsTrigger value="budgetCategories">
+              <FolderTree className="w-4 h-4 mr-2" />
+              {t('settings.budgetCategories')}
+            </TabsTrigger>
+          )}
           {canManageUsers && (
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
@@ -216,7 +221,7 @@ export function SettingsPage() {
               <CardTitle>{t('settings.budgetCategories')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <BudgetCategoriesSettings />
+              <BudgetCategoriesSettings canEdit={canManageCategories} />
             </CardContent>
           </Card>
         </TabsContent>

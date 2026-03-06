@@ -14,6 +14,7 @@ import {
   Eye, Search, Grid, List, Folder, FolderPlus, Clock, User,
   ChevronRight, ChevronLeft, Home, X, MessageCircle,
   FileImage, FileSpreadsheet, FileType, FileCode, FileArchive,
+  Shield,
 } from 'lucide-react';
 import { DocumentChatThread } from '../documents/DocumentChatThread';
 import { supabaseAuth } from '../../lib/authClient';
@@ -89,9 +90,13 @@ export function ProjectDocumentsTab({ projectId }: Props) {
   const [newFolder, setNewFolder] = useState({ name: '', description: '', color: '#3B82F6' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [permissionsDoc, setPermissionsDoc] = useState<DocumentRecord | null>(null);
+  const [permissionsJson, setPermissionsJson] = useState('');
 
   const { user: currentUser } = useAuth();
   const { hasPermission } = usePermissionsMatrix();
+  const canManagePermissions = hasPermission('documents', 'manage_permissions');
 
   useEffect(() => {
     loadDocuments();
@@ -328,6 +333,33 @@ export function ProjectDocumentsTab({ projectId }: Props) {
   const getUserName = (userId: string) => {
     const user = users.find(u => u.id === userId);
     return user?.name ?? userId ?? 'Unknown';
+  };
+
+  const openPermissionsDialog = (doc: DocumentRecord) => {
+    setPermissionsDoc(doc);
+    const perms = (doc as any).permissions;
+    setPermissionsJson(perms != null ? JSON.stringify(perms, null, 2) : '{}');
+    setPermissionsDialogOpen(true);
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionsDoc) return;
+    try {
+      let parsed: Record<string, any>;
+      try {
+        parsed = JSON.parse(permissionsJson || '{}');
+      } catch {
+        toast.error('Invalid JSON');
+        return;
+      }
+      await dataStore.updateDocument(permissionsDoc.id, { permissions: parsed });
+      toast.success('Access permissions updated');
+      setPermissionsDialogOpen(false);
+      setPermissionsDoc(null);
+      await loadDocuments();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update permissions');
+    }
   };
 
   const currentFolderDocs = documents.filter(d =>
@@ -574,6 +606,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                     <Button variant="ghost" size="sm" onClick={() => { setSelectedDocForChat(doc); setChatDialogOpen(true); }} title="Chat">
                       <MessageCircle className="w-4 h-4" />
                     </Button>
+                    {canManagePermissions && (
+                    <Button variant="ghost" size="sm" onClick={() => openPermissionsDialog(doc)} title="Manage Access">
+                      <Shield className="w-4 h-4" />
+                    </Button>
+                    )}
                     {hasPermission('documents', 'download') && (
                     <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                       <Download className="w-4 h-4" />
@@ -668,6 +705,11 @@ export function ProjectDocumentsTab({ projectId }: Props) {
                         <Button variant="ghost" size="sm" onClick={() => { setSelectedDocForChat(doc); setChatDialogOpen(true); }} title="Chat">
                           <MessageCircle className="w-4 h-4" />
                         </Button>
+                        {canManagePermissions && (
+                        <Button variant="ghost" size="sm" onClick={() => openPermissionsDialog(doc)} title="Manage Access">
+                          <Shield className="w-4 h-4" />
+                        </Button>
+                        )}
                         {hasPermission('documents', 'download') && (
                         <Button variant="ghost" size="sm" onClick={() => window.open(doc.fileUrl, '_blank')}>
                           <Download className="w-4 h-4" />
@@ -792,6 +834,12 @@ export function ProjectDocumentsTab({ projectId }: Props) {
             <DialogTitle className="flex items-center justify-between">
               <span className="truncate pr-4">{selectedDoc?.name}</span>
               <div className="flex items-center gap-2">
+                {canManagePermissions && selectedDoc && (
+                <Button variant="outline" size="sm" onClick={() => openPermissionsDialog(selectedDoc)}>
+                  <Shield className="w-4 h-4 mr-2" />
+                  Manage Access
+                </Button>
+                )}
                 {hasPermission('documents', 'download') && (
                 <Button variant="outline" size="sm" onClick={() => selectedDoc && window.open(selectedDoc.fileUrl, '_blank')}>
                   <Download className="w-4 h-4 mr-2" />
@@ -863,6 +911,40 @@ export function ProjectDocumentsTab({ projectId }: Props) {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Access / Permissions Dialog */}
+      <Dialog open={permissionsDialogOpen} onOpenChange={(open) => !open && (setPermissionsDialogOpen(false), setPermissionsDoc(null))}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              Manage Document Access
+            </DialogTitle>
+            <DialogDescription>
+              Set who can view and download this document. Use JSON format, e.g. {`{"view": ["userId1"], "download": ["userId1","userId2"]}`} or {`{"public": true}`}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {permissionsDoc && (
+              <p className="text-sm text-gray-600 font-medium truncate">Document: {permissionsDoc.name}</p>
+            )}
+            <div className="space-y-2">
+              <Label>Permissions (JSON)</Label>
+              <Textarea
+                value={permissionsJson}
+                onChange={(e) => setPermissionsJson(e.target.value)}
+                placeholder='{"view": [], "download": []}'
+                rows={8}
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPermissionsDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSavePermissions} className="bg-[#7A1516] hover:bg-[#5A1012]">Save</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

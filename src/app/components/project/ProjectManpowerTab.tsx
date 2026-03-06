@@ -44,6 +44,7 @@ const roleColors: Record<ManpowerRole, string> = {
 
 export function ProjectManpowerTab({ projectId, project }: Props) {
   const { hasPermission } = usePermissionsMatrix();
+  const canViewAll = hasPermission('employees', 'view_all');
   const canCreateEmployee = hasPermission('employees', 'create');
   const canEditEmployee = hasPermission('employees', 'edit');
   const canDeleteEmployee = hasPermission('employees', 'delete');
@@ -359,7 +360,7 @@ export function ProjectManpowerTab({ projectId, project }: Props) {
                             <span className="font-medium">Nationality:</span> {member.nationality}
                           </div>
                         )}
-                        {member.idNumber && (
+                        {canViewAll && member.idNumber && (
                           <div>
                             <span className="font-medium">ID Number:</span> {member.idNumber}
                           </div>
@@ -445,7 +446,7 @@ export function ProjectManpowerTab({ projectId, project }: Props) {
                         phone: emp.phone || formData.phone,
                         email: emp.email || formData.email,
                         nationality: emp.nationality || formData.nationality,
-                        idNumber: emp.idNumber || formData.idNumber,
+                        idNumber: canViewAll ? (emp.idNumber || formData.idNumber) : formData.idNumber,
                         joiningDate: emp.joiningDate || formData.joiningDate,
                       });
                     }
@@ -512,6 +513,7 @@ export function ProjectManpowerTab({ projectId, project }: Props) {
                 />
               </div>
 
+              {canViewAll && (
               <div className="space-y-2">
                 <Label>ID Number (Iqama/National ID)</Label>
                 <Input
@@ -520,6 +522,7 @@ export function ProjectManpowerTab({ projectId, project }: Props) {
                   placeholder="Enter ID number"
                 />
               </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Joining Date</Label>

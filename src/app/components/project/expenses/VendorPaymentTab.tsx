@@ -1863,7 +1863,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
               </Button>
               
               {/* Admin Actions - Approve/Reject */}
-              {canApprovePayment && currentUser.role === 'admin' && selectedPayment?.status === 'pending_approval' && (
+              {canApprovePayment && selectedPayment?.status === 'pending_approval' && (
                 <>
                   <Button 
                     onClick={handleApprovePayment} 
@@ -1881,7 +1881,7 @@ export function VendorPaymentTab({ projectId, prefilledData, onDataUsed }: Props
               )}
 
               {/* Admin Action - Mark as Paid */}
-              {canProcessPayment && currentUser.role === 'admin' && selectedPayment?.status === 'approved' && (
+              {canProcessPayment && selectedPayment?.status === 'approved' && (
                 <Button 
                   onClick={handleMarkAsPaid} 
                   className="bg-blue-500 hover:bg-blue-600"

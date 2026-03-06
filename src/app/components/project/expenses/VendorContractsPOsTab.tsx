@@ -491,7 +491,7 @@ export function VendorContractsPOsTab({ projectId, onRequestPayment }: Props) {
 
   const isAdmin = user?.role === 'admin';
   const canSendForApproval = canSubmitPO && selectedPO?.status === 'draft';
-  const canApproveOrReject = (canApprovePO || canRejectPO) && isAdmin && selectedPO?.status === 'pending_approval';
+  const canApproveOrReject = (canApprovePO || canRejectPO) && selectedPO?.status === 'pending_approval';
   const canEdit = canEditPO && (selectedPO?.status === 'draft' || (isAdmin && selectedPO?.status === 'approved'));
   const isApproved = selectedPO?.status === 'approved';
   const canRequestPayment = canCreatePayment && selectedPO?.status && !['draft', 'pending_approval', 'rejected', 'paid'].includes(selectedPO.status);

@@ -19,6 +19,7 @@
  */
 import { verifyJwt } from '../lib/verifyJwt.js';
 import { supabase } from '../lib/supabase.js';
+import { hasApiPermission, entityToPermission } from '../lib/requirePermission.js';
 import {
   customersHandler,
   vendorsHandler,
@@ -303,6 +304,12 @@ export default async function handler(req, res) {
 
   // ── Budget categories (single-array config) ───────────────────────────────
   if (entity === 'budgetCategories') {
+    if (req.method === 'PUT') {
+      const allowed = await hasApiPermission(payload.sub, 'budget', 'manage_categories');
+      if (!allowed) {
+        return res.status(403).json({ success: false, error: 'Forbidden: manage_categories required' });
+      }
+    }
     return handleBudgetCategories(req, res);
   }
 
@@ -310,6 +317,75 @@ export default async function handler(req, res) {
   const entityHandler = ENTITY_HANDLERS[entity];
   if (!entityHandler) {
     return res.status(404).json({ success: false, error: `Unknown route: /api/${entity}` });
+  }
+
+  // ── API-side RBAC ─────────────────────────────────────────────────────────
+  const id = parts[2] || null;
+  const perm = entityToPermission(entity, req.method, id);
+  if (perm) {
+    const allowed = await hasApiPermission(payload.sub, perm.module, perm.action);
+    if (!allowed) {
+      return res.status(403).json({ success: false, error: 'Forbidden: insufficient permissions' });
+    }
+    // Special case: PUT with status=approved/rejected requires approve/reject permission
+    if (req.method === 'PUT' && entity === 'vendorInvoices') {
+      try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        if (body.status === 'approved' || body.status === 'approved_level1' || body.status === 'approved_level2') {
+          const allowApprove = await hasApiPermission(payload.sub, 'vendor_invoices', 'approve');
+          if (!allowApprove) {
+            return res.status(403).json({ success: false, error: 'Forbidden: approve permission required' });
+          }
+        }
+        if (body.status === 'rejected') {
+          const allowReject = await hasApiPermission(payload.sub, 'vendor_invoices', 'reject');
+          if (!allowReject) {
+            return res.status(403).json({ success: false, error: 'Forbidden: reject permission required' });
+          }
+        }
+      } catch (_) { /* body parse failed, continue with normal handler */ }
+    }
+    if (req.method === 'PUT' && entity === 'purchase-orders') {
+      try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        if (body.status === 'approved') {
+          const allowApprove = await hasApiPermission(payload.sub, 'purchase_orders', 'approve');
+          if (!allowApprove) {
+            return res.status(403).json({ success: false, error: 'Forbidden: approve permission required' });
+          }
+        }
+        if (body.status === 'rejected') {
+          const allowReject = await hasApiPermission(payload.sub, 'purchase_orders', 'reject');
+          if (!allowReject) {
+            return res.status(403).json({ success: false, error: 'Forbidden: reject permission required' });
+          }
+        }
+      } catch (_) { /* body parse failed */ }
+    }
+    if (req.method === 'PUT' && entity === 'payments') {
+      try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        if (body.status === 'approved' || body.status === 'paid') {
+          const allowProcess = await hasApiPermission(payload.sub, 'payments', 'process');
+          const allowApprove1 = await hasApiPermission(payload.sub, 'payments', 'approve_level1');
+          const allowApprove2 = await hasApiPermission(payload.sub, 'payments', 'approve_level2');
+          if (!allowProcess && !allowApprove1 && !allowApprove2) {
+            return res.status(403).json({ success: false, error: 'Forbidden: payment approval/process permission required' });
+          }
+        }
+      } catch (_) { /* body parse failed */ }
+    }
+    if (req.method === 'PUT' && entity === 'customerInvoices') {
+      try {
+        const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        if (body.status === 'approved') {
+          const allowApprove = await hasApiPermission(payload.sub, 'customer_invoices', 'approve');
+          if (!allowApprove) {
+            return res.status(403).json({ success: false, error: 'Forbidden: approve permission required' });
+          }
+        }
+      } catch (_) { /* body parse failed */ }
+    }
   }
 
   return entityHandler(req, res);

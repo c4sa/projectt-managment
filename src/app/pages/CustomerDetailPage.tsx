@@ -7,10 +7,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { ArrowLeft, Building2, Mail, Phone, MapPin, FileCheck, Edit2, Save, X, FolderOpen, FileText, DollarSign, Receipt } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, MapPin, FileCheck, Edit2, Save, X, FolderOpen, FileText, DollarSign, Receipt, Trash2 } from 'lucide-react';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { AccessDenied } from '../components/AccessDenied';
 import { useLanguage } from '../contexts/LanguageContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +30,9 @@ export function CustomerDetailPage() {
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('customers', 'view');
   const canEdit = hasPermission('customers', 'edit');
+  const canDeleteCustomer = hasPermission('customers', 'delete');
   const [customer, setCustomer] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [customerProjects, setCustomerProjects] = useState<any[]>([]);
   const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
@@ -102,6 +115,18 @@ export function CustomerDetailPage() {
     setIsEditing(false);
   };
 
+  const handleDeleteCustomer = async () => {
+    if (!id) return;
+    try {
+      await dataStore.deleteCustomer(id);
+      toast.success('Customer deleted');
+      setShowDeleteConfirm(false);
+      navigate('/customers');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete customer');
+    }
+  };
+
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
@@ -126,13 +151,26 @@ export function CustomerDetailPage() {
           </div>
         </div>
         
+        <div className="flex gap-2">
         {!isEditing ? (
-          canEdit && (
+          <>
+          {canEdit && (
           <Button onClick={() => setIsEditing(true)} className="bg-[#7A1516] hover:bg-[#5a0f10]">
             <Edit2 className="w-4 h-4 mr-2" />
             Edit Customer
           </Button>
-          )
+          )}
+          {canDeleteCustomer && (
+            <Button
+              variant="outline"
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
+          )}
+          </>
         ) : (
           <div className="flex gap-2">
             {canEdit && (
@@ -147,7 +185,31 @@ export function CustomerDetailPage() {
             </Button>
           </div>
         )}
+        </div>
       </div>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {customer?.name}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteCustomer();
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

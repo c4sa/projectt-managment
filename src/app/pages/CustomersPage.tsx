@@ -7,12 +7,29 @@ import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
-import { Plus, Search, UserCircle } from 'lucide-react';
+import { Plus, Search, UserCircle, Trash2, MoreVertical } from 'lucide-react';
 import { previewNextNumber } from '../utils/numberGenerator';
 import { Skeleton } from '../components/ui/skeleton';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { AccessDenied } from '../components/AccessDenied';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 export function CustomersPage() {
   const navigate = useNavigate();
@@ -20,7 +37,9 @@ export function CustomersPage() {
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('customers', 'view');
   const canCreate = hasPermission('customers', 'create');
+  const canDeleteCustomer = hasPermission('customers', 'delete');
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [deleteConfirmCustomer, setDeleteConfirmCustomer] = useState<{ id: string; name: string } | null>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -88,6 +107,18 @@ export function CustomersPage() {
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const handleDeleteCustomer = async (customerId: string) => {
+    try {
+      await dataStore.deleteCustomer(customerId);
+      toast.success('Customer deleted');
+      setDeleteConfirmCustomer(null);
+      const customersData = await dataStore.getCustomers();
+      setCustomers(customersData);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete customer');
+    }
   };
 
   if (!canView) {
@@ -258,6 +289,26 @@ export function CustomersPage() {
                     <p className="text-sm text-blue-600 font-mono">{customer.code}</p>
                     <p className="text-sm text-gray-500 mt-1">{customerProjects.length} project(s)</p>
                   </div>
+                  {canDeleteCustomer && (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={(e) => { e.preventDefault(); setDeleteConfirmCustomer({ id: customer.id, name: customer.name }); }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 text-sm">
@@ -292,6 +343,29 @@ export function CustomersPage() {
           <p className="text-gray-500">{t('customers.noCustomersFound')}</p>
         </div>
       )}
+
+      <AlertDialog open={!!deleteConfirmCustomer} onOpenChange={(open) => !open && setDeleteConfirmCustomer(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteConfirmCustomer?.name}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={(e) => {
+                e.preventDefault();
+                deleteConfirmCustomer && handleDeleteCustomer(deleteConfirmCustomer.id);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

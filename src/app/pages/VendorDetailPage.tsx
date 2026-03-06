@@ -21,12 +21,23 @@ import {
   Wallet,
   Edit,
   Save,
-  Info
+  Info,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { AccessDenied } from '../components/AccessDenied';
 import { useLanguage } from '../contexts/LanguageContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 export function VendorDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +46,9 @@ export function VendorDetailPage() {
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('vendors', 'view');
   const canEdit = hasPermission('vendors', 'edit');
+  const canDeleteVendor = hasPermission('vendors', 'delete');
   const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [invoices, setInvoices] = useState<VendorInvoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -80,6 +93,18 @@ export function VendorDetailPage() {
 
     setEditDialogOpen(false);
     toast.success(t('vendor.updatedSuccess'));
+  };
+
+  const handleDeleteVendor = async () => {
+    if (!id) return;
+    try {
+      await dataStore.deleteVendor(id);
+      toast.success('Vendor deleted');
+      setShowDeleteConfirm(false);
+      navigate('/vendors');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete vendor');
+    }
   };
 
   if (!canView) {
@@ -156,6 +181,7 @@ export function VendorDetailPage() {
           </div>
         </div>
 
+        <div className="flex gap-2">
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           {canEdit && (
           <DialogTrigger asChild>
@@ -164,6 +190,16 @@ export function VendorDetailPage() {
               {t('vendor.edit')}
             </Button>
           </DialogTrigger>
+          )}
+          {canDeleteVendor && (
+            <Button
+              variant="outline"
+              className="text-red-600 border-red-600 hover:bg-red-50"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
           )}
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -253,6 +289,30 @@ export function VendorDetailPage() {
           </DialogContent>
         </Dialog>
       </div>
+      </div>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete vendor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {vendor?.name}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteVendor();
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

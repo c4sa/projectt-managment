@@ -6,11 +6,28 @@ import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
-import { Plus, Search, Building2 } from 'lucide-react';
+import { Plus, Search, Building2, Trash2, MoreVertical } from 'lucide-react';
 import { Skeleton } from '../components/ui/skeleton';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { AccessDenied } from '../components/AccessDenied';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 export function VendorsPage() {
   const navigate = useNavigate();
@@ -18,7 +35,9 @@ export function VendorsPage() {
   const { hasPermission } = usePermissionsMatrix();
   const canView = hasPermission('vendors', 'view');
   const canCreate = hasPermission('vendors', 'create');
+  const canDeleteVendor = hasPermission('vendors', 'delete');
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [deleteConfirmVendor, setDeleteConfirmVendor] = useState<{ id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +86,18 @@ export function VendorsPage() {
       address: '',
       contactPerson: '',
     });
+  };
+
+  const handleDeleteVendor = async (vendorId: string) => {
+    try {
+      await dataStore.deleteVendor(vendorId);
+      toast.success('Vendor deleted');
+      setDeleteConfirmVendor(null);
+      const vendorsData = await dataStore.getVendors();
+      setVendors(vendorsData);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete vendor');
+    }
   };
 
   if (!canView) {
@@ -236,6 +267,26 @@ export function VendorsPage() {
                     <p className="text-sm text-gray-500">{vendor.specialty}</p>
                   )}
                 </div>
+                {canDeleteVendor && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={(e) => { e.preventDefault(); setDeleteConfirmVendor({ id: vendor.id, name: vendor.name }); }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 text-sm">
@@ -269,6 +320,26 @@ export function VendorsPage() {
           <p className="text-gray-500">{t('vendors.noVendorsFound')}</p>
         </div>
       )}
+
+      <AlertDialog open={!!deleteConfirmVendor} onOpenChange={(open) => !open && setDeleteConfirmVendor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vendor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteConfirmVendor?.name}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => deleteConfirmVendor && handleDeleteVendor(deleteConfirmVendor.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
