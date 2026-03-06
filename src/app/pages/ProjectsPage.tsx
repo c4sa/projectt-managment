@@ -70,8 +70,20 @@ export function ProjectsPage() {
     setProjectsWithCalculations(projectsData);
     setIsLoading(false);
 
+    // Fetch all tasks once for progress (per Document: Progress = CompletedTasks/TotalTasks)
+    let allTasks: any[] = [];
+    try {
+      allTasks = (await dataStore.getTasks()) ?? [];
+    } catch {
+      // If tasks fetch fails (e.g. permission), progress will be 0
+    }
+
     // Only fetch budget/payments when user has permission (avoids 403 for Employee)
     const withCalcs = await Promise.all(projectsData.map(async (project) => {
+      const projectTasks = allTasks.filter((t: any) => t.projectId === project.id);
+      const completedTasks = projectTasks.filter((t: any) => t.status === 'done').length;
+      const progress = projectTasks.length > 0 ? (completedTasks / projectTasks.length) * 100 : 0;
+
       if (canViewBudget && canViewPayments) {
         const [budgetItems, payments] = await Promise.all([
           dataStore.getBudgetItems(project.id),
@@ -84,12 +96,14 @@ export function ProjectsPage() {
           ...project,
           budget: totalBudgeted > 0 ? totalBudgeted : project.budget,
           spent: totalSpent,
+          progress,
         };
       }
       return {
         ...project,
         budget: project.budget ?? 0,
         spent: 0,
+        progress,
       };
     }));
     setProjectsWithCalculations(withCalcs);
@@ -633,7 +647,7 @@ export function ProjectsPage() {
         ))}
         {!isLoading && filteredProjects.map((project) => {
           const customer = customers.find(c => c.id === project.customerId);
-          const progress = project.budget && project.budget > 0 ? (project.spent / project.budget) * 100 : 0;
+          const progress = project.progress ?? 0;
           const isArchived = !!project.archived;
 
           return (

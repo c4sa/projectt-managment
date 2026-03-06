@@ -9,23 +9,31 @@ interface Props {
 
 export function ProjectDashboardTab({ project }: Props) {
   const [payments, setPayments] = useState<any[]>([]);
-  
+  const [tasks, setTasks] = useState<any[]>([]);
+
   useEffect(() => {
-    const loadPayments = async () => {
-      const paymentsData = await dataStore.getPayments(project.id);
+    const loadData = async () => {
+      const [paymentsData, tasksData] = await Promise.all([
+        dataStore.getPayments(project.id),
+        dataStore.getTasks(project.id),
+      ]);
       setPayments(paymentsData);
+      setTasks(tasksData);
     };
-    loadPayments();
+    loadData();
   }, [project.id]);
-  
+
   const budget = project.budget || 0;
-  
+
   // Per Document: TotalActualSpent = Sum(VendorPayments where status = Approved)
   const spent = payments
     .filter(p => p.type === 'payment' && (p.status === 'approved' || p.status === 'paid'))
     .reduce((sum, p) => sum + (p.amount || p.subtotal || 0), 0);
-  
-  const progress = budget > 0 ? (spent / budget) * 100 : 0;
+
+  // Per Document: Progress = CompletedTasks ÷ TotalTasks (task completion, not budget spent)
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t: any) => t.status === 'done').length;
+  const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
   const remaining = budget - spent;
 
   const budgetData = [
