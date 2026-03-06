@@ -166,6 +166,7 @@ export interface Project {
   vatStatus?: 'not_applicable' | 'inclusive' | 'exclusive';
   contractDocument?: string;
   contractLink?: string;
+  archived?: boolean;
   createdAt: string;
 }
 

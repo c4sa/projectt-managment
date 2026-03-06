@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useParams, useNavigate } from 'react-router';
 import { usePermissionsMatrix } from '../contexts/PermissionsMatrixContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,7 +12,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { ArrowLeft, Calendar, DollarSign, Users, FileText, Building2, Mail, Phone, MapPin, FileCheck, ExternalLink, Edit2, Save, X, Upload, Link as LinkIcon, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, Users, FileText, Building2, Mail, Phone, MapPin, FileCheck, ExternalLink, Edit2, Save, X, Upload, Link as LinkIcon, ChevronDown, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import { ProjectTasksTab } from '../components/project/ProjectTasksTab';
 import { ProjectBudgetTab } from '../components/project/ProjectBudgetTab';
 import { ProjectDocumentsTab } from '../components/project/ProjectDocumentsTab';
@@ -22,6 +23,22 @@ import { ProjectManpowerTab } from '../components/project/ProjectManpowerTab';
 import { ProjectIncomeTab } from '../components/project/ProjectIncomeTab';
 import { AccessDenied } from '../components/AccessDenied';
 import { useLanguage } from '../contexts/LanguageContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +49,8 @@ export function ProjectDetailPage() {
   const canViewProject = hasPermission('projects', 'view');
   const canViewAllProjects = hasPermission('projects', 'view_all');
   const canEditProject = hasPermission('projects', 'edit');
+  const canDeleteProject = hasPermission('projects', 'delete');
+  const canArchiveProject = hasPermission('projects', 'archive');
   const canViewBudget = hasPermission('budget', 'view');
   const canViewPurchaseOrders = hasPermission('purchase_orders', 'view');
   const canViewVendorInvoices = hasPermission('vendor_invoices', 'view');
@@ -58,6 +77,7 @@ export function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('information');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Financial data for calculating budget and spent
   const [totalBudgeted, setTotalBudgeted] = useState(0);
@@ -222,6 +242,37 @@ export function ProjectDetailPage() {
     setRefreshKey(prev => prev + 1); // Force re-render
   };
 
+  const handleArchive = async () => {
+    try {
+      await dataStore.updateProject(project.id, { archived: true });
+      toast.success('Project archived');
+      setRefreshKey(prev => prev + 1);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to archive project');
+    }
+  };
+
+  const handleUnarchive = async () => {
+    try {
+      await dataStore.updateProject(project.id, { archived: false });
+      toast.success('Project unarchived');
+      setRefreshKey(prev => prev + 1);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to unarchive project');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await dataStore.deleteProject(project.id);
+      toast.success('Project deleted');
+      setShowDeleteConfirm(false);
+      navigate('/projects');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete project');
+    }
+  };
+
   // Calculate contract value breakdown
   const calculateContractBreakdown = () => {
     if (!project.contractValue) return null;
@@ -335,8 +386,66 @@ export function ProjectDetailPage() {
             )}
           </div>
           <p className="text-gray-500">{project.code}</p>
+          <div className="flex items-center gap-2 mt-2">
+            {project.archived && (
+              <Badge variant="secondary" className="bg-gray-200 text-gray-700">Archived</Badge>
+            )}
+            {(canArchiveProject || canDeleteProject) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Actions
+                    <ChevronDown className="w-4 h-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {canArchiveProject && !project.archived && project.status === 'completed' && (
+                    <DropdownMenuItem onClick={handleArchive}>
+                      <Archive className="w-4 h-4 mr-2" />
+                      Archive Project
+                    </DropdownMenuItem>
+                  )}
+                  {canArchiveProject && project.archived && (
+                    <DropdownMenuItem onClick={handleUnarchive}>
+                      <ArchiveRestore className="w-4 h-4 mr-2" />
+                      Unarchive Project
+                    </DropdownMenuItem>
+                  )}
+                  {canDeleteProject && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Project
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
       </div>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{project.name}&quot;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Quick Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
