@@ -135,6 +135,46 @@ export function EmployeesPage() {
       return;
     }
 
+    const others = employees.filter(e => !editingEmployee || e.id !== editingEmployee.id);
+    const emailVal = (formData.email || '').trim().toLowerCase();
+    const phoneVal = (formData.phone || '').trim();
+
+    if (emailVal) {
+      const duplicateEmail = others.find(e => (e.email || '').trim().toLowerCase() === emailVal);
+      if (duplicateEmail) {
+        toast.error('An employee with this email already exists');
+        return;
+      }
+    }
+    if (phoneVal) {
+      const duplicatePhone = others.find(e => (e.phone || '').trim() === phoneVal);
+      if (duplicatePhone) {
+        toast.error('An employee with this phone number already exists');
+        return;
+      }
+    }
+    if (formData.idNumber?.trim()) {
+      const duplicateId = others.find(e => (e.idNumber || '').trim() === formData.idNumber.trim());
+      if (duplicateId) {
+        toast.error('An employee with this ID number already exists');
+        return;
+      }
+    }
+    if (formData.passportNumber?.trim()) {
+      const duplicatePassport = others.find(e => (e.passportNumber || '').trim() === formData.passportNumber.trim());
+      if (duplicatePassport) {
+        toast.error('An employee with this passport number already exists');
+        return;
+      }
+    }
+    if (formData.userId?.trim()) {
+      const duplicateUser = others.find(e => (e.userId || '').trim() === formData.userId.trim());
+      if (duplicateUser) {
+        toast.error('This user is already linked to another employee');
+        return;
+      }
+    }
+
     if (editingEmployee) {
       await dataStore.updateEmployee(editingEmployee.id, formData);
       toast.success('Employee updated successfully');

@@ -58,6 +58,21 @@ export function MainLayout() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
+  const loadCompanyInfo = () => {
+    try {
+      const stored = localStorage.getItem('core_code_company_info');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { name: 'Core Code', logoBase64: '' };
+  };
+  const [companyInfo, setCompanyInfo] = useState(loadCompanyInfo);
+
+  React.useEffect(() => {
+    const handler = () => setCompanyInfo(loadCompanyInfo());
+    window.addEventListener('companyInfoUpdated', handler);
+    return () => window.removeEventListener('companyInfoUpdated', handler);
+  }, []);
+
   React.useEffect(() => {
     if (!user?.id) {
       setProfilePhoto(null);
@@ -125,12 +140,20 @@ export function MainLayout() {
               exit={{ opacity: 0 }}
               className="flex items-center gap-2"
             >
-              <img src="/logo.png" alt="Core Code" className="h-8 w-auto" />
-              <span className="font-bold text-lg">Core Code</span>
+              {companyInfo.logoBase64 ? (
+                <img src={companyInfo.logoBase64} alt={companyInfo.name} className="h-8 w-auto object-contain" />
+              ) : (
+                <img src="/logo.png" alt={companyInfo.name} className="h-8 w-auto" />
+              )}
+              <span className="font-bold text-lg">{companyInfo.name}</span>
             </motion.div>
           )}
           {sidebarCollapsed && (
-            <img src="/logo.png" alt="Core Code" className="h-8 w-auto mx-auto" />
+            companyInfo.logoBase64 ? (
+              <img src={companyInfo.logoBase64} alt={companyInfo.name} className="h-8 w-auto mx-auto object-contain" />
+            ) : (
+              <img src="/logo.png" alt={companyInfo.name} className="h-8 w-auto mx-auto" />
+            )
           )}
         </div>
       </div>

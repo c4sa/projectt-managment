@@ -74,6 +74,7 @@ export function SettingsPage() {
 
   const handleSaveCompany = () => {
     localStorage.setItem('core_code_company_info', JSON.stringify(company));
+    window.dispatchEvent(new CustomEvent('companyInfoUpdated'));
     toast.success('Company settings updated');
   };
 
